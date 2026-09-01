@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#0e0e0f; --bg2:#161618; --card:#1c1c1f; --card2:#232326;
@@ -83,15 +84,61 @@
     .rowday{grid-template-columns:1fr;}
     .rowday > div{padding-top:2px !important;}
   }
+  #loginScreen{max-width:480px;margin:60px auto;text-align:center;}
+  #loginScreen .card{text-align:left;}
+  #loginScreen h1{font-size:1.3rem;margin-bottom:6px;}
+  #loginScreen .step{font-size:.8rem;color:var(--muted);margin-bottom:14px;line-height:1.5;}
+  #googleBtnHolder{margin-top:14px;display:flex;justify-content:center;}
+  .hidden{display:none !important;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+  .status-pill{font-size:.7rem;color:var(--muted);border:1px solid var(--border);border-radius:20px;padding:4px 10px;}
+  .status-pill.ok{color:var(--green);border-color:rgba(46,204,113,.35);}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header>
+<!-- ===================== TELA DE CONFIG / LOGIN ===================== -->
+<div class="wrap" id="loginScreen">
+  <header style="border:none;text-align:center;">
     <h1>Painel de Acompanhamento Pessoal</h1>
-    <p>Rotina de treino, hidratação e evolução de indicadores de saúde</p>
+    <p class="muted" style="font-size:.85rem">Conecte sua conta Google para carregar seus dados</p>
   </header>
+
+  <div class="card hidden" id="configCard">
+    <h2>Configuração avançada</h2>
+    <div class="step">Só mexa aqui se precisar trocar de planilha ou de projeto do Google Cloud.</div>
+    <label>Client ID do Google Cloud</label>
+    <input type="text" id="cfgClientId" placeholder="123456-abc.apps.googleusercontent.com">
+    <label>ID da planilha do Google Sheets</label>
+    <input type="text" id="cfgSheetId" placeholder="1AbCdEfGhIjKlMnOpQrStUvWxYz...">
+    <button class="btn" onclick="saveAppConfig()">Salvar configuração</button>
+    <div class="save-msg" id="cfgSaveMsg"></div>
+  </div>
+
+  <div class="card" id="loginCard">
+    <h2>Entrar com Google</h2>
+    <div class="step">Na primeira vez, o Google vai mostrar um aviso de "app não verificado" — isso é esperado para um app pessoal; clique em "Avançado" e depois em "Acessar (nome do app)".</div>
+    <div id="googleBtnHolder"></div>
+    <div id="loginStatus" class="note" style="margin-top:10px;"></div>
+    <div style="text-align:center;margin-top:10px;">
+      <a href="#" style="font-size:.75rem;color:var(--muted)" onclick="document.getElementById('configCard').classList.toggle('hidden');return false;">Configuração avançada</a>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP PRINCIPAL ===================== -->
+<div class="wrap hidden" id="mainApp">
+
+  <div class="topbar" style="border-bottom:1px solid var(--border);padding-bottom:14px;margin-bottom:18px;">
+    <header style="border:none;padding:0;margin:0;">
+      <h1>Painel de Acompanhamento Pessoal</h1>
+      <p>Rotina de treino, hidratação e evolução de indicadores de saúde</p>
+    </header>
+    <div style="text-align:right;">
+      <span class="status-pill ok" id="syncStatus">☁️ Sincronizado</span><br>
+      <button class="btn secondary small" style="margin-top:6px;" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
 
   <nav id="nav"></nav>
 
@@ -348,21 +395,190 @@ function pillHtml(status){
 }
 
 /* ============================================================
-   STORAGE HELPERS (persistência via window.storage)
+   CONFIGURAÇÃO (Client ID + ID da planilha, salvos neste navegador)
    ============================================================ */
+const DEFAULT_CLIENT_ID = "376901371638-qpqchla4jt5vgq5sai1knlr1a6lg7783.apps.googleusercontent.com";
+const DEFAULT_SHEET_ID = "1tEro48J4kvBlXRGqvWgaK2inGUPsoMTRuikfsKy607Y";
+
+function getAppConfig(){
+  return {
+    clientId: localStorage.getItem("gcfg_clientId") || DEFAULT_CLIENT_ID,
+    sheetId: localStorage.getItem("gcfg_sheetId") || DEFAULT_SHEET_ID
+  };
+}
+function saveAppConfig(){
+  const clientId = document.getElementById("cfgClientId").value.trim();
+  const sheetId = document.getElementById("cfgSheetId").value.trim();
+  if(!clientId || !sheetId){
+    document.getElementById("cfgSaveMsg").innerHTML = '<span style="color:var(--red)">Preencha os dois campos.</span>';
+    return;
+  }
+  localStorage.setItem("gcfg_clientId", clientId);
+  localStorage.setItem("gcfg_sheetId", sheetId);
+  document.getElementById("cfgSaveMsg").innerHTML = '<span style="color:var(--green)">Configuração salva ✓ Agora clique em "Entrar com Google" abaixo.</span>';
+  initGoogleLogin();
+}
+
+/* ============================================================
+   LOGIN GOOGLE (Google Identity Services) + CHAMADAS À SHEETS API
+   ============================================================ */
+let ACCESS_TOKEN = null;
+let TOKEN_CLIENT = null;
+const SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const DATA_TAB = "AppData";
+
+function initGoogleLogin(){
+  const cfg = getAppConfig();
+  document.getElementById("cfgClientId").value = cfg.clientId;
+  document.getElementById("cfgSheetId").value = cfg.sheetId;
+  TOKEN_CLIENT = google.accounts.oauth2.initTokenClient({
+    client_id: cfg.clientId,
+    scope: SHEETS_SCOPE,
+    callback: async (resp)=>{
+      if(resp.error){
+        document.getElementById("loginStatus").innerHTML = '<span style="color:var(--red)">Falha no login: '+resp.error+'</span>';
+        return;
+      }
+      ACCESS_TOKEN = resp.access_token;
+      document.getElementById("loginStatus").textContent = "Conectando à planilha...";
+      try{
+        await ensureAppDataTab();
+        await loadSheetCache(true);
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("mainApp").classList.remove("hidden");
+        buildNav();
+      }catch(e){
+        console.error(e);
+        document.getElementById("loginStatus").innerHTML = '<span style="color:var(--red)">Não consegui acessar a planilha. Confira o ID da planilha e se sua conta tem acesso a ela.</span>';
+      }
+    }
+  });
+  const holder = document.getElementById("googleBtnHolder");
+  holder.innerHTML = "";
+  const btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = "🔑 Entrar com Google";
+  btn.onclick = ()=> TOKEN_CLIENT.requestAccessToken({prompt: ACCESS_TOKEN? "" : "consent"});
+  holder.appendChild(btn);
+}
+
+function doLogout(){
+  ACCESS_TOKEN = null;
+  SHEET_CACHE = null;
+  document.getElementById("mainApp").classList.add("hidden");
+  document.getElementById("loginScreen").classList.remove("hidden");
+  document.getElementById("loginStatus").textContent = "";
+}
+
+async function sheetsFetch(path, options={}){
+  if(!ACCESS_TOKEN) throw new Error("Sem sessão ativa");
+  const cfg = getAppConfig();
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}${path}`;
+  const res = await fetch(url, {
+    ...options,
+    headers:{ "Authorization":"Bearer "+ACCESS_TOKEN, "Content-Type":"application/json", ...(options.headers||{}) }
+  });
+  if(res.status===401){
+    // token expirado: tenta renovar silenciosamente uma vez
+    await new Promise((resolve)=>{
+      TOKEN_CLIENT.callback = (resp)=>{ if(resp.access_token) ACCESS_TOKEN = resp.access_token; resolve(); };
+      TOKEN_CLIENT.requestAccessToken({prompt:""});
+    });
+    document.getElementById("syncStatus").textContent = "☁️ Sincronizado";
+    return sheetsFetch(path, options);
+  }
+  if(!res.ok){
+    const txt = await res.text();
+    throw new Error("Erro Sheets API: "+res.status+" "+txt);
+  }
+  return res.json();
+}
+
+async function ensureAppDataTab(){
+  const meta = await sheetsFetch("");
+  const exists = meta.sheets.some(s=>s.properties.title===DATA_TAB);
+  if(!exists){
+    await sheetsFetch(":batchUpdate", {
+      method:"POST",
+      body: JSON.stringify({requests:[{addSheet:{properties:{title:DATA_TAB}}}]})
+    });
+    await sheetsFetch(`/values/${DATA_TAB}!A1:B1?valueInputOption=RAW`, {
+      method:"PUT",
+      body: JSON.stringify({values:[["key","value"]]})
+    });
+  }
+}
+
+/* ============================================================
+   CACHE DE DADOS (lido/gravado na aba AppData da planilha)
+   ============================================================ */
+let SHEET_CACHE = null; // Map: key -> {row, value}
+
+async function loadSheetCache(force=false){
+  if(SHEET_CACHE && !force) return SHEET_CACHE;
+  const data = await sheetsFetch(`/values/${DATA_TAB}!A2:B100000`);
+  const rows = data.values || [];
+  const map = new Map();
+  rows.forEach((r,i)=>{
+    const key = r[0]; const val = r[1];
+    if(key) map.set(key, {row: i+2, value: val});
+  });
+  SHEET_CACHE = map;
+  return map;
+}
+
 async function sGet(key, fallback=null){
-  try{ const r = await window.storage.get(key,false); return r? JSON.parse(r.value): fallback; }
-  catch(e){ return fallback; }
+  try{
+    const cache = await loadSheetCache();
+    const entry = cache.get(key);
+    if(!entry || entry.value===undefined || entry.value==="") return fallback;
+    return JSON.parse(entry.value);
+  }catch(e){ console.error("sGet falhou",e); return fallback; }
 }
+
 async function sSet(key, value){
-  try{ await window.storage.set(key, JSON.stringify(value), false); return true; }
-  catch(e){ console.error("storage set failed",e); return false; }
+  try{
+    const cache = await loadSheetCache();
+    const json = JSON.stringify(value);
+    const entry = cache.get(key);
+    document.getElementById("syncStatus").textContent = "☁️ Salvando...";
+    if(entry){
+      await sheetsFetch(`/values/${DATA_TAB}!A${entry.row}:B${entry.row}?valueInputOption=RAW`, {
+        method:"PUT",
+        body: JSON.stringify({values:[[key, json]]})
+      });
+      entry.value = json;
+    } else {
+      await sheetsFetch(`/values/${DATA_TAB}!A:B:append?valueInputOption=RAW`, {
+        method:"POST",
+        body: JSON.stringify({values:[[key, json]]})
+      });
+      await loadSheetCache(true); // recarrega para saber a linha nova
+    }
+    document.getElementById("syncStatus").textContent = "☁️ Sincronizado";
+    return true;
+  }catch(e){ console.error("sSet falhou",e); document.getElementById("syncStatus").textContent = "⚠️ Erro ao salvar"; return false; }
 }
+
 async function sList(prefix){
-  try{ const r = await window.storage.list(prefix,false); return r? r.keys: []; }
-  catch(e){ return []; }
+  try{
+    const cache = await loadSheetCache();
+    return [...cache.keys()].filter(k=>k.startsWith(prefix));
+  }catch(e){ return []; }
 }
-async function sDelete(key){ try{ await window.storage.delete(key,false); }catch(e){} }
+
+async function sDelete(key){
+  try{
+    const cache = await loadSheetCache();
+    const entry = cache.get(key);
+    if(!entry) return;
+    await sheetsFetch(`/values/${DATA_TAB}!A${entry.row}:B${entry.row}?valueInputOption=RAW`, {
+      method:"PUT",
+      body: JSON.stringify({values:[["",""]]})
+    });
+    cache.delete(key);
+  }catch(e){ console.error("sDelete falhou",e); }
+}
 
 /* ============================================================
    NAVEGAÇÃO
@@ -933,7 +1149,17 @@ async function resetAll(){
 /* ============================================================
    INIT
    ============================================================ */
-buildNav();
+window.addEventListener("load", ()=>{
+  // espera a lib do Google carregar antes de tentar iniciar o login
+  const tryInit = ()=>{
+    if(window.google && google.accounts){
+      initGoogleLogin();
+    } else {
+      setTimeout(tryInit, 200);
+    }
+  };
+  tryInit();
+});
 </script>
 </body>
 </html>
