@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>Painel de Acompanhamento Pessoal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --bg:#0e0e0f; --bg2:#161618; --card:#1c1c1f; --card2:#232326;
+    --border:#333336; --text:#f2f2f3; --muted:#9a9a9e; --muted2:#6f6f74;
+    --green:#2ecc71; --greenBg:rgba(46,204,113,.12);
+    --yellow:#f1c40f; --yellowBg:rgba(241,196,15,.12);
+    --red:#e74c3c; --redBg:rgba(231,76,60,.14);
+    --accent:#e8e8ea;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:980px;margin:0 auto;padding:20px 16px 60px;}
+  header{padding:8px 0 18px;border-bottom:1px solid var(--border);margin-bottom:18px;}
+  header h1{font-size:1.4rem;margin:0 0 4px;letter-spacing:.2px;}
+  header p{margin:0;color:var(--muted);font-size:.85rem;}
+  nav{display:flex;gap:6px;overflow-x:auto;margin-bottom:20px;padding-bottom:2px;}
+  nav button{flex:0 0 auto;background:var(--bg2);border:1px solid var(--border);color:var(--muted);
+    padding:9px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;white-space:nowrap;transition:.15s;}
+  nav button.active{background:var(--accent);color:#111;border-color:var(--accent);font-weight:600;}
+  nav button:hover:not(.active){border-color:#555;color:var(--text);}
+  section.tab{display:none;}
+  section.tab.active{display:block;animation:fade .2s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+  .card h2{font-size:1rem;margin:0 0 12px;color:var(--accent);}
+  .card h3{font-size:.85rem;margin:0 0 8px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
+  .grid{display:grid;gap:12px;}
+  .grid.cols-2{grid-template-columns:repeat(auto-fit,minmax(220px,1fr));}
+  .grid.cols-3{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));}
+  .ind{border-radius:10px;padding:12px 14px;border:1px solid var(--border);background:var(--card2);position:relative;}
+  .ind .name{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;}
+  .ind .val{font-size:1.35rem;font-weight:700;}
+  .ind .ref{font-size:.68rem;color:var(--muted2);margin-top:4px;}
+  .pill{display:inline-block;font-size:.65rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:middle;}
+  .pill.green{background:var(--greenBg);color:var(--green);}
+  .pill.yellow{background:var(--yellowBg);color:var(--yellow);}
+  .pill.red{background:var(--redBg);color:var(--red);}
+  .ind.green{border-color:rgba(46,204,113,.35);}
+  .ind.yellow{border-color:rgba(241,196,15,.35);}
+  .ind.red{border-color:rgba(231,76,60,.4);}
+  label{display:block;font-size:.75rem;color:var(--muted);margin:10px 0 4px;}
+  input, select, textarea{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);
+    padding:9px 10px;border-radius:8px;font-size:.88rem;font-family:inherit;}
+  textarea{resize:vertical;min-height:60px;}
+  button.btn{background:var(--accent);color:#111;border:none;padding:10px 16px;border-radius:8px;font-weight:700;
+    cursor:pointer;font-size:.85rem;margin-top:14px;}
+  button.btn.secondary{background:transparent;color:var(--text);border:1px solid var(--border);}
+  button.btn.small{padding:6px 10px;font-size:.75rem;margin-top:0;}
+  button.btn:hover{opacity:.9;}
+  table{width:100%;border-collapse:collapse;font-size:.82rem;}
+  table th, table td{padding:8px 6px;border-bottom:1px solid var(--border);text-align:left;}
+  table th{color:var(--muted);font-weight:600;font-size:.72rem;text-transform:uppercase;}
+  .rowday{display:grid;grid-template-columns:190px 1fr 1fr 90px;gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--border);}
+  .rowday > div:not(.dname){padding-top:4px;}
+  .rowday:last-child{border-bottom:none;}
+  .rowday .dname{font-weight:600;font-size:.85rem;padding-top:8px;}
+  .badge-ok{color:var(--green);font-weight:700;}
+  .badge-no{color:var(--red);font-weight:700;}
+  .muted{color:var(--muted);}
+  .flexbetween{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+  .note{font-size:.78rem;color:var(--muted);background:var(--bg2);border:1px dashed var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;}
+  canvas{max-width:100%;}
+  .chartbox{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;}
+  .save-msg{font-size:.78rem;color:var(--green);margin-top:8px;height:16px;}
+  .toplinks{display:flex;gap:8px;}
+  .weekpicker{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .weekpicker button{background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;cursor:pointer;}
+  .exam-hist{font-size:.8rem;}
+  .exam-hist td{white-space:nowrap;}
+  .streakbar{height:8px;border-radius:6px;background:var(--bg2);overflow:hidden;margin-top:6px;}
+  .streakbar > div{height:100%;background:var(--green);}
+  @media (max-width:640px){
+    .rowday{grid-template-columns:1fr;}
+    .rowday > div{padding-top:2px !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Painel de Acompanhamento Pessoal</h1>
+    <p>Rotina de treino, hidratação e evolução de indicadores de saúde</p>
+  </header>
+
+  <nav id="nav"></nav>
+
+  <!-- ===================== DASHBOARD ===================== -->
+  <section class="tab" id="tab-dashboard">
+    <div class="card" id="todayTrainingCard"></div>
+
+    <div class="card">
+      <div class="flexbetween">
+        <h2>Indicadores atuais</h2>
+        <span class="muted" style="font-size:.75rem" id="lastExamDate"></span>
+      </div>
+      <div class="grid cols-3" id="indicatorsGrid"></div>
+      <div class="note">🟢 dentro do limite &nbsp; 🟡 razoável, requer atenção &nbsp; 🔴 acima do permitido</div>
+    </div>
+
+    <div class="card">
+      <h2>Semana atual — hidratação e treino</h2>
+      <div class="grid cols-3" id="weekSummaryCards"></div>
+    </div>
+
+    <div class="card">
+      <h2>Peso e evolução rápida</h2>
+      <div class="chartbox"><canvas id="chartWeightMini" height="90"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ===================== CRONOGRAMA SEMANAL ===================== -->
+  <section class="tab" id="tab-semana">
+    <div class="card">
+      <div class="weekpicker">
+        <button onclick="changeWeek(-1)">← semana anterior</button>
+        <strong id="weekLabel"></strong>
+        <button onclick="changeWeek(1)">próxima semana →</button>
+      </div>
+
+      <div id="daysContainer"></div>
+
+      <div class="flexbetween" style="margin-top:14px;">
+        <div>
+          <h3 style="margin-bottom:2px">Resumo da semana</h3>
+          <span class="muted" id="weekResumo" style="font-size:.85rem"></span>
+        </div>
+        <div>
+          <button class="btn secondary" onclick="deleteWeek()">Apagar semana</button>
+          <button class="btn" onclick="saveWeek()">Salvar semana</button>
+        </div>
+      </div>
+      <div class="save-msg" id="weekSaveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h3>Parâmetros de meta hídrica</h3>
+      <div class="grid cols-2">
+        <div><label>Meta de água base diária (L)</label><input type="number" step="0.1" id="metaBase"></div>
+        <div><label>Meta extra em dia de treino (L)</label><input type="number" step="0.1" id="metaExtra"></div>
+      </div>
+      <button class="btn secondary small" onclick="saveParams()">Salvar parâmetros</button>
+    </div>
+  </section>
+
+  <!-- ===================== ACOMPANHAMENTO MENSAL (DOMINGO) ===================== -->
+  <section class="tab" id="tab-domingo">
+    <div class="card">
+      <h2>Check-in de domingo</h2>
+      <p class="muted" style="font-size:.82rem;margin-top:-6px">Preencha isso todo domingo, ao final do dia, para fechar a semana.</p>
+      <label>Data</label>
+      <input type="date" id="sundayDate">
+      <div class="grid cols-2">
+        <div><label>Peso (kg)</label><input type="number" step="0.1" id="sundayPeso" placeholder="ex: 79.4"></div>
+        <div><label>Circunferência abdominal (cm) — opcional</label><input type="number" step="0.5" id="sundayCintura"></div>
+        <div>
+          <label>Funcionamento do intestino</label>
+          <select id="sundayIntestino"><option>Regular/Diário</option><option>Preso</option><option>Alternado</option></select>
+        </div>
+        <div>
+          <label>Sintomas de gota / dor articular</label>
+          <select id="sundaySintomas"><option>Nenhum</option><option>Leve</option><option>Moderado</option><option>Crise</option></select>
+        </div>
+      </div>
+      <label>Desvios alimentares / furos na semana</label>
+      <textarea id="sundayDesvios" placeholder="Ex: Nenhum furo. Dieta 100% limpa."></textarea>
+      <div class="note" id="sundayAguaAuto">Metas de água batidas na semana: —</div>
+      <button class="btn" onclick="saveSunday()">Salvar check-in</button>
+      <div class="save-msg" id="sundaySaveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Histórico de check-ins semanais</h2>
+      <div style="overflow-x:auto"><table class="exam-hist" id="sundayHistTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== NOVO EXAME ===================== -->
+  <section class="tab" id="tab-exame">
+    <div class="card">
+      <h2>Registrar novo exame / medidas</h2>
+      <p class="muted" style="font-size:.82rem;margin-top:-6px">Use isto quando repetir os exames de sangue e urina (a cada 60–90 dias).</p>
+
+      <div class="note" style="background:var(--card2);border-style:solid;">
+        <b style="color:var(--text)">📄 Subir PDF do exame (preenchimento automático)</b>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="file" accept="application/pdf" id="examPdfInput" style="flex:1;min-width:180px;">
+          <button class="btn small" onclick="extractPdfToForm()">Extrair dados do PDF</button>
+        </div>
+        <div id="pdfExtractStatus" style="margin-top:8px;font-size:.78rem;"></div>
+        <div style="margin-top:6px;font-size:.72rem;color:var(--muted2)">A extração é automática e pode errar — revise todos os campos abaixo antes de salvar.</div>
+      </div>
+
+      <label>Data da coleta</label>
+      <input type="date" id="examDate">
+      <div class="grid cols-2">
+        <div><label>Peso (kg)</label><input type="number" step="0.1" id="examPeso"></div>
+        <div><label>Circunferência abdominal (cm)</label><input type="number" step="0.5" id="examCintura"></div>
+        <div><label>HOMA-IR (ref: &lt; 2,70)</label><input type="number" step="0.01" id="examHoma"></div>
+        <div><label>Insulina jejum µUI/mL (ref: 2,5–13,1)</label><input type="number" step="0.1" id="examInsulina"></div>
+        <div><label>Glicose mg/dL (ref: 70–99)</label><input type="number" step="1" id="examGlicose"></div>
+        <div><label>HbA1c % (ref: &lt; 5,7)</label><input type="number" step="0.1" id="examHba1c"></div>
+        <div><label>eGFR mL/min/1,73m² (ref: &gt; 90)</label><input type="number" step="1" id="examEgfr"></div>
+        <div><label>Creatinina mg/dL (ref: 0,70–1,30)</label><input type="number" step="0.01" id="examCreatinina"></div>
+        <div><label>Ácido úrico mg/dL (ref: 3,4–7,0 / meta &lt;6)</label><input type="number" step="0.1" id="examAcido"></div>
+        <div><label>Hematócrito % (ref: 40–50)</label><input type="number" step="0.1" id="examHematocrito"></div>
+        <div><label>Colesterol total mg/dL (ref: &lt; 190)</label><input type="number" step="1" id="examColesterol"></div>
+        <div><label>LDL mg/dL (meta &lt; 100–130)</label><input type="number" step="1" id="examLdl"></div>
+        <div><label>HDL mg/dL (ref: &gt; 40)</label><input type="number" step="1" id="examHdl"></div>
+        <div><label>Triglicérides mg/dL (ref: &lt; 150)</label><input type="number" step="1" id="examTrig"></div>
+        <div><label>Vitamina D ng/mL (ref: &gt; 30)</label><input type="number" step="0.1" id="examVitd"></div>
+      </div>
+      <label>Observações do médico</label>
+      <textarea id="examObs"></textarea>
+      <button class="btn" onclick="saveExam()">Salvar exame</button>
+      <div class="save-msg" id="examSaveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Histórico de exames</h2>
+      <div style="overflow-x:auto"><table class="exam-hist" id="examHistTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ===================== EVOLUÇÃO / COMPARATIVO ===================== -->
+  <section class="tab" id="tab-evolucao">
+    <div class="card">
+      <h2>Comparação: início vs. cada medição</h2>
+      <div style="overflow-x:auto"><table id="compareTable"></table></div>
+    </div>
+    <div class="card"><h3>HOMA-IR</h3><div class="chartbox"><canvas id="chartHoma" height="110"></canvas></div></div>
+    <div class="card"><h3>eGFR</h3><div class="chartbox"><canvas id="chartEgfr" height="110"></canvas></div></div>
+    <div class="card"><h3>Ácido Úrico</h3><div class="chartbox"><canvas id="chartAcido" height="110"></canvas></div></div>
+    <div class="card"><h3>Peso</h3><div class="chartbox"><canvas id="chartPeso" height="110"></canvas></div></div>
+  </section>
+
+  <!-- ===================== MELHORIAS SUGERIDAS ===================== -->
+  <section class="tab" id="tab-melhorias">
+    <div class="card">
+      <h2>Melhorias sugeridas além do pedido original</h2>
+      <ul style="font-size:.88rem;line-height:1.7;color:var(--text);">
+        <li><b>Circunferência abdominal</b> — adicionada nos check-ins e exames: costuma cair antes do peso na balança e é o melhor sinal visual de queda de resistência à insulina.</li>
+        <li><b>Sono</b> — campo diário de horas dormidas: sono curto eleva cortisol e piora HOMA-IR, então vale registrar junto da água/treino.</li>
+        <li><b>"Sequência" (streak) de dias com meta de água batida</b> — reforço visual de constância, que é o fator que mais pesa na reversão dos exames.</li>
+        <li><b>Semáforo único no topo</b> — indicador central mostrando se a tendência geral está melhorando, estável ou piorando, olhando os 3 marcadores críticos juntos (HOMA-IR, eGFR, ácido úrico).</li>
+        <li><b>Exportação para Excel</b> — botão que gera o .xlsx no formato exato da sua planilha original, para você repor no Drive sempre que quiser.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Diário — horas de sono e álcool (opcional, ajuda o painel)</h2>
+      <p class="muted" style="font-size:.82rem">Isso é preenchido junto com o dia da semana, na aba "Cronograma".</p>
+    </div>
+  </section>
+
+  <!-- ===================== EXPORTAR ===================== -->
+  <section class="tab" id="tab-exportar">
+    <div class="card">
+      <h2>Exportar para Excel</h2>
+      <p style="font-size:.88rem;color:var(--muted);">
+        Gera um arquivo <code>planejamento_saude.xlsx</code> com a mesma estrutura da sua planilha original
+        (aba "Cronograma Semanal" e aba "Acompanhamento Mensal"), já preenchido com os dados que você
+        registrou aqui no app. Baixe e suba no seu Google Drive, substituindo o arquivo atual, sempre que quiser
+        atualizar sua base de dados "oficial".
+      </p>
+      <button class="btn" onclick="exportXlsx()">⬇️ Baixar planejamento_saude.xlsx</button>
+    </div>
+    <div class="card">
+      <h2>Apagar todos os dados deste app</h2>
+      <p style="font-size:.85rem;color:var(--muted)">Isso não afeta seus arquivos do Drive — apenas os dados guardados aqui neste app.</p>
+      <button class="btn secondary" onclick="resetAll()">Limpar dados do app</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ============================================================
+   CONFIG / BASELINE (extraído da planilha e do exame de sangue)
+   ============================================================ */
+const DIAS = ["Segunda-Feira","Terça-Feira","Quarta-Feira","Quinta-Feira","Sexta-Feira","Sábado","Domingo"];
+const BASELINE_DATE = "2026-08-22";
+
+const BASELINE_EXAM = {
+  data: BASELINE_DATE, peso: 80, cintura: null,
+  homaIr: 7.08, insulina: 29.9, glicose: 96, hba1c: 5.6,
+  eGFR: 68, creatinina: 1.34, acidoUrico: 7.5, hematocrito: 50.5,
+  colesterol: 204, ldl: 134, hdl: 39, trig: 170, vitd: 24,
+  obs: "Exame inicial: base do plano de conduta clínica."
+};
+
+// Cronograma de treinos por dia (índice 0=Segunda ... 6=Domingo), extraído do plano original
+const TREINO_SCHEDULE = [
+  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", obs:"Agachamento, Flexão, Elevação Pélvica, Prancha (25 min)"},
+  {forca:"Descanso", cardio:"Caminhada Rápida", obs:"Caminhada rápida de 35 a 40 min (ritmo firme para elevar HDL)"},
+  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", obs:"Agachamento, Flexão, Elevação Pélvica, Prancha (25 min)"},
+  {forca:"Descanso", cardio:"Caminhada Rápida", obs:"Caminhada rápida de 35 a 40 min (ritmo firme)"},
+  {forca:"Descanso", cardio:"Descanso Ativo", obs:"Descanso completo. Excelente dia para manter a hidratação alta."},
+  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", obs:"Agachamento, Flexão, Elevação Pélvica, Prancha (25 min)"},
+  {forca:"Descanso", cardio:"Descanso Ativo", obs:"Caminhada leve ou descanso. Planejamento de refeições da semana."}
+];
+
+const BASELINE_SUNDAY = {
+  data: "2026-08-23", peso: 80, cintura: null,
+  intestino: "Regular/Diário", sintomas: "Nenhum",
+  diasMeta: 7, desvios: "Nenhum furo. Dieta 100% limpa."
+};
+
+// definição de referências e função de status (verde/amarelo/vermelho)
+const MARKERS = {
+  homaIr:      {label:"HOMA-IR",            unit:"",      ref:"< 2,70",        dir:"lower", green:2.70, yellow:5.0},
+  insulina:    {label:"Insulina",           unit:"µUI/mL",ref:"2,5 – 13,1",    dir:"lower", green:13.1, yellow:20},
+  glicose:     {label:"Glicose",            unit:"mg/dL", ref:"70 – 99",       dir:"lower", green:99,   yellow:125},
+  hba1c:       {label:"HbA1c",              unit:"%",     ref:"< 5,7",         dir:"lower", green:5.7,  yellow:6.5},
+  eGFR:        {label:"eGFR",               unit:"mL/min",ref:"> 90",          dir:"higher",green:90,   yellow:60},
+  creatinina:  {label:"Creatinina",         unit:"mg/dL", ref:"0,70 – 1,30",   dir:"lower", green:1.30, yellow:1.6},
+  acidoUrico:  {label:"Ácido Úrico",        unit:"mg/dL", ref:"3,4 – 7,0 (meta <6)",dir:"lower", green:6.0, yellow:7.0},
+  hematocrito: {label:"Hematócrito",        unit:"%",     ref:"40 – 50",       dir:"range", green:[40,50], yellow:[38,52]},
+  colesterol:  {label:"Colesterol Total",   unit:"mg/dL", ref:"< 190",         dir:"lower", green:190,  yellow:220},
+  ldl:         {label:"LDL",                unit:"mg/dL", ref:"< 100 – 130",   dir:"lower", green:100,  yellow:130},
+  hdl:         {label:"HDL",                unit:"mg/dL", ref:"> 40",          dir:"higher",green:40,   yellow:35},
+  trig:        {label:"Triglicérides",      unit:"mg/dL", ref:"< 150",         dir:"lower", green:150,  yellow:200},
+  vitd:        {label:"Vitamina D",         unit:"ng/mL", ref:"> 30",          dir:"higher",green:30,   yellow:20},
+};
+
+function statusOf(key, value){
+  if(value===null||value===undefined||value==="") return null;
+  const m = MARKERS[key]; const v = parseFloat(value);
+  if(isNaN(v)) return null;
+  if(m.dir==="lower"){ if(v<=m.green) return "green"; if(v<=m.yellow) return "yellow"; return "red"; }
+  if(m.dir==="higher"){ if(v>=m.green) return "green"; if(v>=m.yellow) return "yellow"; return "red"; }
+  if(m.dir==="range"){ const [gl,gh]=m.green,[yl,yh]=m.yellow;
+    if(v>=gl&&v<=gh) return "green"; if(v>=yl&&v<=yh) return "yellow"; return "red"; }
+}
+function pillHtml(status){
+  if(!status) return "";
+  const map={green:"🟢 OK",yellow:"🟡 Atenção",red:"🔴 Alto"};
+  return `<span class="pill ${status}">${map[status]}</span>`;
+}
+
+/* ============================================================
+   STORAGE HELPERS (persistência via window.storage)
+   ============================================================ */
+async function sGet(key, fallback=null){
+  try{ const r = await window.storage.get(key,false); return r? JSON.parse(r.value): fallback; }
+  catch(e){ return fallback; }
+}
+async function sSet(key, value){
+  try{ await window.storage.set(key, JSON.stringify(value), false); return true; }
+  catch(e){ console.error("storage set failed",e); return false; }
+}
+async function sList(prefix){
+  try{ const r = await window.storage.list(prefix,false); return r? r.keys: []; }
+  catch(e){ return []; }
+}
+async function sDelete(key){ try{ await window.storage.delete(key,false); }catch(e){} }
+
+/* ============================================================
+   NAVEGAÇÃO
+   ============================================================ */
+const TABS = [
+  {id:"dashboard", label:"Painel"},
+  {id:"semana", label:"Cronograma"},
+  {id:"domingo", label:"Check-in domingo"},
+  {id:"exame", label:"Novo exame"},
+  {id:"evolucao", label:"Evolução"},
+  {id:"melhorias", label:"Melhorias"},
+  {id:"exportar", label:"Exportar"},
+];
+function buildNav(){
+  const nav = document.getElementById("nav");
+  nav.innerHTML = TABS.map(t=>`<button data-tab="${t.id}">${t.label}</button>`).join("");
+  nav.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
+  showTab("dashboard");
+}
+function showTab(id){
+  document.querySelectorAll("section.tab").forEach(s=>s.classList.remove("active"));
+  document.getElementById("tab-"+id).classList.add("active");
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
+  if(id==="dashboard") renderDashboard();
+  if(id==="semana") renderWeek();
+  if(id==="domingo") renderSunday();
+  if(id==="exame") renderExamHistory();
+  if(id==="evolucao") renderEvolucao();
+}
+
+/* ============================================================
+   DATAS / SEMANA
+   ============================================================ */
+function isoDate(d){ return d.toISOString().slice(0,10); }
+function mondayOf(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+let currentMonday = mondayOf(new Date());
+
+async function getParams(){
+  return await sGet("params", {metaBase:3.5, metaExtra:1.5});
+}
+async function saveParams(){
+  const metaBase = parseFloat(document.getElementById("metaBase").value)||3.5;
+  const metaExtra = parseFloat(document.getElementById("metaExtra").value)||1.5;
+  await sSet("params", {metaBase, metaExtra});
+  renderWeek();
+}
+
+async function loadDayData(weekMonday){
+  const key = "week:"+isoDate(weekMonday);
+  const existing = await sGet(key, null);
+  if(existing) return existing;
+  return DIAS.map((nome,i)=>{
+    const d = new Date(weekMonday); d.setDate(d.getDate()+i);
+    return {date:isoDate(d), nome, treinou:"Não", aguaConsumida:"", sono:"", alcool:"Não"};
+  });
+}
+
+async function renderWeek(){
+  const params = await getParams();
+  document.getElementById("metaBase").value = params.metaBase;
+  document.getElementById("metaExtra").value = params.metaExtra;
+
+  const label = `Semana de ${currentMonday.toLocaleDateString('pt-BR')}`;
+  document.getElementById("weekLabel").textContent = label;
+
+  const week = await loadDayData(currentMonday);
+  const cont = document.getElementById("daysContainer");
+  cont.innerHTML = week.map((d,i)=>{
+    const meta = d.treinou==="Sim" ? (params.metaBase+params.metaExtra) : params.metaBase;
+    const consumida = parseFloat(d.aguaConsumida)||0;
+    const bateu = consumida >= meta;
+    const sched = TREINO_SCHEDULE[i];
+    return `
+    <div class="rowday" data-i="${i}">
+      <div class="dname">${d.nome}<div class="muted" style="font-weight:400;font-size:.72rem">${new Date(d.date+"T00:00").toLocaleDateString('pt-BR')}</div>
+        <div class="muted" style="font-weight:400;font-size:.68rem;margin-top:6px;line-height:1.4;">
+          💪 ${sched.forca}<br>🚶 ${sched.cardio}<br><span style="font-style:italic">${sched.obs}</span>
+        </div>
+      </div>
+      <div>
+        <label style="margin-top:0">Treinou hoje?</label>
+        <select class="inTreino">
+          <option value="Não" ${d.treinou==="Não"?"selected":""}>Não</option>
+          <option value="Sim" ${d.treinou==="Sim"?"selected":""}>Sim</option>
+        </select>
+      </div>
+      <div>
+        <label style="margin-top:0">Água consumida (L) — meta ${meta.toFixed(1)}L</label>
+        <input type="number" step="0.1" class="inAgua" value="${d.aguaConsumida}">
+      </div>
+      <div style="text-align:center;padding-top:22px;">
+        ${d.aguaConsumida!=="" ? (bateu? '<span class="badge-ok">✅ Meta</span>' : '<span class="badge-no">❌ Falha</span>') : '<span class="muted">—</span>'}
+      </div>
+    </div>`;
+  }).join("");
+
+  // totais
+  let treinos=0, totalAgua=0, dentroMeta=0;
+  week.forEach(d=>{
+    if(d.treinou==="Sim") treinos++;
+    const meta = d.treinou==="Sim" ? (params.metaBase+params.metaExtra) : params.metaBase;
+    const consumida = parseFloat(d.aguaConsumida)||0;
+    totalAgua += consumida;
+    if(d.aguaConsumida!=="" && consumida>=meta) dentroMeta++;
+  });
+  document.getElementById("weekResumo").textContent =
+    `${treinos} treinos · ${totalAgua.toFixed(1)}L consumidos · meta batida em ${dentroMeta} de 7 dias`;
+}
+
+async function saveWeek(){
+  const rows = document.querySelectorAll("#daysContainer .rowday");
+  const week = await loadDayData(currentMonday);
+  rows.forEach(r=>{
+    const i = parseInt(r.dataset.i);
+    week[i].treinou = r.querySelector(".inTreino").value;
+    week[i].aguaConsumida = r.querySelector(".inAgua").value;
+  });
+  await sSet("week:"+isoDate(currentMonday), week);
+  document.getElementById("weekSaveMsg").textContent = "Semana salva ✓";
+  setTimeout(()=>document.getElementById("weekSaveMsg").textContent="",2000);
+  renderWeek();
+  renderDashboard();
+}
+
+async function deleteWeek(){
+  if(!confirm("Apagar todos os lançamentos desta semana (treinos e água)?")) return;
+  await sDelete("week:"+isoDate(currentMonday));
+  renderWeek();
+  renderDashboard();
+}
+function changeWeek(delta){
+  currentMonday.setDate(currentMonday.getDate()+delta*7);
+  renderWeek();
+}
+
+/* ============================================================
+   DOMINGO (Acompanhamento semanal/mensal)
+   ============================================================ */
+function nextOrCurrentSunday(){
+  const d = new Date(); const day = d.getDay();
+  const diff = (7-day)%7;
+  d.setDate(d.getDate()+diff); d.setHours(0,0,0,0);
+  return isoDate(d);
+}
+async function getSundayList(){
+  const keys = await sList("sunday:");
+  const list = [];
+  for(const k of keys){ const v = await sGet(k); if(v) list.push(v); }
+  list.sort((a,b)=> a.data.localeCompare(b.data));
+  return [BASELINE_SUNDAY, ...list];
+}
+async function renderSunday(){
+  document.getElementById("sundayDate").value = nextOrCurrentSunday();
+  const params = await getParams();
+  const week = await loadDayData(mondayOf(new Date(document.getElementById("sundayDate").value+"T00:00")));
+  let dentroMeta=0;
+  week.forEach(d=>{
+    const meta = d.treinou==="Sim" ? (params.metaBase+params.metaExtra) : params.metaBase;
+    const consumida = parseFloat(d.aguaConsumida)||0;
+    if(d.aguaConsumida!=="" && consumida>=meta) dentroMeta++;
+  });
+  document.getElementById("sundayAguaAuto").textContent = `Metas de água batidas na semana (calculado automaticamente): ${dentroMeta} de 7 dias`;
+  await renderSundayHistory();
+}
+async function saveSunday(){
+  const data = document.getElementById("sundayDate").value;
+  const params = await getParams();
+  const week = await loadDayData(mondayOf(new Date(data+"T00:00")));
+  let dentroMeta=0;
+  week.forEach(d=>{
+    const meta = d.treinou==="Sim" ? (params.metaBase+params.metaExtra) : params.metaBase;
+    const consumida = parseFloat(d.aguaConsumida)||0;
+    if(d.aguaConsumida!=="" && consumida>=meta) dentroMeta++;
+  });
+  const entry = {
+    data,
+    peso: document.getElementById("sundayPeso").value,
+    cintura: document.getElementById("sundayCintura").value,
+    intestino: document.getElementById("sundayIntestino").value,
+    sintomas: document.getElementById("sundaySintomas").value,
+    diasMeta: dentroMeta,
+    desvios: document.getElementById("sundayDesvios").value
+  };
+  await sSet("sunday:"+data, entry);
+  document.getElementById("sundaySaveMsg").textContent="Check-in salvo ✓";
+  setTimeout(()=>document.getElementById("sundaySaveMsg").textContent="",2000);
+  document.getElementById("sundayPeso").value="";
+  document.getElementById("sundayCintura").value="";
+  document.getElementById("sundayDesvios").value="";
+  await renderSundayHistory();
+  renderDashboard();
+}
+async function renderSundayHistory(){
+  const list = await getSundayList();
+  const rows = list.map((s,idx)=>`
+    <tr>
+      <td>${idx===0? "<b>Início</b>" : new Date(s.data+"T00:00").toLocaleDateString('pt-BR')}</td>
+      <td>${s.peso||"—"} kg</td>
+      <td>${s.cintura||"—"}</td>
+      <td>${s.intestino||"—"}</td>
+      <td>${s.sintomas||"—"}</td>
+      <td>${s.diasMeta}/7</td>
+      <td>${s.desvios||"—"}</td>
+      <td>${idx===0? '<span class="muted">—</span>' : `<button class="btn secondary small" onclick="deleteSunday('${s.data}')">Apagar</button>`}</td>
+    </tr>`).join("");
+  document.getElementById("sundayHistTable").innerHTML = `
+    <tr><th>Data</th><th>Peso</th><th>Cintura</th><th>Intestino</th><th>Gota</th><th>Água</th><th>Desvios</th><th></th></tr>${rows}`;
+}
+async function deleteSunday(data){
+  if(!confirm("Apagar este check-in de domingo?")) return;
+  await sDelete("sunday:"+data);
+  await renderSundayHistory();
+  renderDashboard();
+}
+
+/* ============================================================
+   EXAMES
+   ============================================================ */
+async function getExamList(){
+  const keys = await sList("exam:");
+  const list = [];
+  for(const k of keys){ const v = await sGet(k); if(v) list.push(v); }
+  list.sort((a,b)=>a.data.localeCompare(b.data));
+  return [BASELINE_EXAM, ...list];
+}
+async function getLatestExam(){
+  const list = await getExamList();
+  return list[list.length-1];
+}
+async function saveExam(){
+  const data = document.getElementById("examDate").value;
+  if(!data){ alert("Escolha a data da coleta."); return; }
+  const entry = {
+    data,
+    peso: document.getElementById("examPeso").value,
+    cintura: document.getElementById("examCintura").value,
+    homaIr: document.getElementById("examHoma").value,
+    insulina: document.getElementById("examInsulina").value,
+    glicose: document.getElementById("examGlicose").value,
+    hba1c: document.getElementById("examHba1c").value,
+    eGFR: document.getElementById("examEgfr").value,
+    creatinina: document.getElementById("examCreatinina").value,
+    acidoUrico: document.getElementById("examAcido").value,
+    hematocrito: document.getElementById("examHematocrito").value,
+    colesterol: document.getElementById("examColesterol").value,
+    ldl: document.getElementById("examLdl").value,
+    hdl: document.getElementById("examHdl").value,
+    trig: document.getElementById("examTrig").value,
+    vitd: document.getElementById("examVitd").value,
+    obs: document.getElementById("examObs").value
+  };
+  await sSet("exam:"+data, entry);
+  document.getElementById("examSaveMsg").textContent="Exame salvo ✓";
+  setTimeout(()=>document.getElementById("examSaveMsg").textContent="",2000);
+  [...document.querySelectorAll("#tab-exame input, #tab-exame textarea")].forEach(i=>i.value="");
+  await renderExamHistory();
+  renderDashboard();
+  renderEvolucao();
+}
+async function renderExamHistory(){
+  const list = await getExamList();
+  const rows = list.map((e,idx)=>`
+    <tr>
+      <td>${idx===0? "<b>Início</b>" : new Date(e.data+"T00:00").toLocaleDateString('pt-BR')}</td>
+      <td>${e.peso||"—"}</td>
+      <td>${e.homaIr||"—"} ${pillHtml(statusOf('homaIr',e.homaIr))}</td>
+      <td>${e.eGFR||"—"} ${pillHtml(statusOf('eGFR',e.eGFR))}</td>
+      <td>${e.acidoUrico||"—"} ${pillHtml(statusOf('acidoUrico',e.acidoUrico))}</td>
+      <td>${e.trig||"—"}</td>
+      <td>${e.hdl||"—"}</td>
+      <td>${idx===0? '<span class="muted">—</span>' : `<button class="btn secondary small" onclick="deleteExam('${e.data}')">Apagar</button>`}</td>
+    </tr>`).join("");
+  document.getElementById("examHistTable").innerHTML = `
+    <tr><th>Data</th><th>Peso</th><th>HOMA-IR</th><th>eGFR</th><th>Ác. Úrico</th><th>Trig.</th><th>HDL</th><th></th></tr>${rows}`;
+}
+async function deleteExam(data){
+  if(!confirm("Apagar este exame do histórico?")) return;
+  await sDelete("exam:"+data);
+  await renderExamHistory();
+  renderDashboard();
+  renderEvolucao();
+}
+
+/* ============================================================
+   UPLOAD DE PDF DO EXAME (extração automática)
+   ============================================================ */
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
+
+async function extractPdfText(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  let text = "";
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(it=>it.str).join(" ") + " \n ";
+  }
+  return text;
+}
+
+function toNum(str){
+  if(!str) return null;
+  return parseFloat(str.replace(/\./g,"").replace(",","."));
+}
+function grab(text, regex){
+  const m = text.match(regex);
+  return m ? m[1] : null;
+}
+
+// Padrões baseados no formato de laudo do laboratório DASA (pode não bater 100% com outros laboratórios)
+const PDF_PATTERNS = {
+  data:        /DATA\s*(?:DA\s*)?COLETA[\/\s]*(?:RECEBIMENTO)?\s*:?\s*(\d{2}\/\d{2}\/\d{4})/i,
+  homaIr:      /HOMA-?IR\D{0,15}?([\d]+,[\d]+|\d+)/i,
+  insulina:    /Insulina\s+([\d]+,[\d]+|\d+)\s*µ?UI\/?mL/i,
+  glicose:     /\bGlicose\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  hba1c:       /(?:Hemoglobina Glicada|HbA1c)\D{0,20}?([\d]+,[\d]+|\d+)\s*%/i,
+  eGFR:        /eGFR\D{0,10}?([\d]+,[\d]+|\d+)\s*mL/i,
+  creatinina:  /Creatinina\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  acidoUrico:  /[ÁA]cido\s*[ÚU]rico\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  hematocrito: /Hemat[óo]crito\s+([\d]+,[\d]+|\d+)\s*%/i,
+  colesterol:  /Colesterol\s*Total\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  ldl:         /LDL\s*-\s*Colesterol\s*\(calculado\)\s+([\d]+,[\d]+|\d+)/i,
+  hdl:         /(?<!Não\s)HDL\s*-\s*Colesterol\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  trig:        /Triglic[ée]rides\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  vitd:        /(?:25-Hidroxivitamina D|Vitamina D)[^\d]{0,20}?([\d]+,[\d]+|\d+)\s*ng\/mL/i,
+};
+
+function isoFromBr(dataBr){
+  const [d,m,y] = dataBr.split("/");
+  return `${y}-${m}-${d}`;
+}
+
+async function extractPdfToForm(){
+  const fileInput = document.getElementById("examPdfInput");
+  const status = document.getElementById("pdfExtractStatus");
+  if(!fileInput.files.length){ status.innerHTML = '<span style="color:var(--red)">Escolha um arquivo PDF primeiro.</span>'; return; }
+  status.innerHTML = "Lendo o PDF...";
+  try{
+    const text = await extractPdfText(fileInput.files[0]);
+    let found = 0;
+    const dataBr = grab(text, PDF_PATTERNS.data);
+    if(dataBr){ document.getElementById("examDate").value = isoFromBr(dataBr); found++; }
+
+    const fieldMap = {
+      homaIr:"examHoma", insulina:"examInsulina", glicose:"examGlicose", hba1c:"examHba1c",
+      eGFR:"examEgfr", creatinina:"examCreatinina", acidoUrico:"examAcido", hematocrito:"examHematocrito",
+      colesterol:"examColesterol", ldl:"examLdl", hdl:"examHdl", trig:"examTrig", vitd:"examVitd"
+    };
+    for(const key in fieldMap){
+      const raw = grab(text, PDF_PATTERNS[key]);
+      const num = toNum(raw);
+      if(num!==null){ document.getElementById(fieldMap[key]).value = num; found++; }
+    }
+
+    if(found>0){
+      status.innerHTML = `<span style="color:var(--green)">✓ ${found} campo(s) preenchido(s) automaticamente. Revise antes de salvar — peso e cintura não vêm do exame de sangue, preencha manualmente.</span>`;
+    } else {
+      status.innerHTML = `<span style="color:var(--yellow)">Não consegui reconhecer os valores neste PDF. Preencha manualmente abaixo.</span>`;
+    }
+  }catch(e){
+    console.error(e);
+    status.innerHTML = `<span style="color:var(--red)">Não foi possível ler este PDF. Preencha manualmente abaixo.</span>`;
+  }
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+async function renderTodayTraining(){
+  const today = new Date();
+  const idx = (today.getDay()+6)%7; // 0=Segunda ... 6=Domingo
+  const sched = TREINO_SCHEDULE[idx];
+  const monday = mondayOf(today);
+  const week = await loadDayData(monday);
+  const todayEntry = week[idx];
+  const feito = todayEntry.treinou === "Sim";
+  document.getElementById("todayTrainingCard").innerHTML = `
+    <div class="flexbetween">
+      <h2 style="margin:0">🏋️ Treino de hoje — ${DIAS[idx]}</h2>
+      <span class="pill ${feito?'green':'yellow'}">${feito?'✅ Feito':'⏳ Pendente'}</span>
+    </div>
+    <div class="grid cols-2" style="margin-top:10px">
+      <div class="ind"><div class="name">Força (Calistenia)</div><div class="val" style="font-size:1rem">${sched.forca}</div></div>
+      <div class="ind"><div class="name">Aeróbico / Cardio</div><div class="val" style="font-size:1rem">${sched.cardio}</div></div>
+    </div>
+    <div class="note">${sched.obs}</div>
+    ${feito ? "" : `<button class="btn small" style="margin-top:12px" onclick="markTodayDone()">Marcar treino de hoje como feito</button>`}
+  `;
+}
+async function markTodayDone(){
+  const today = new Date();
+  const idx = (today.getDay()+6)%7;
+  const monday = mondayOf(today);
+  const week = await loadDayData(monday);
+  week[idx].treinou = "Sim";
+  await sSet("week:"+isoDate(monday), week);
+  renderTodayTraining();
+  renderDashboard();
+}
+
+let miniChart=null;
+async function renderDashboard(){
+  renderTodayTraining();
+  const latest = await getLatestExam();
+  document.getElementById("lastExamDate").textContent = "Último exame: "+new Date(latest.data+"T00:00").toLocaleDateString('pt-BR');
+
+  const keysToShow = ["homaIr","eGFR","acidoUrico","trig","hdl","colesterol","ldl","hematocrito","vitd","glicose","hba1c","insulina"];
+  document.getElementById("indicatorsGrid").innerHTML = keysToShow.map(k=>{
+    const m = MARKERS[k]; const v = latest[k];
+    const st = statusOf(k,v);
+    return `<div class="ind ${st||''}">
+      <div class="name">${m.label}</div>
+      <div class="val">${v!==undefined&&v!==null&&v!==""?v:"—"} <span style="font-size:.7rem;color:var(--muted)">${m.unit}</span> ${pillHtml(st)}</div>
+      <div class="ref">Ref.: ${m.ref}</div>
+    </div>`;
+  }).join("");
+
+  const params = await getParams();
+  const week = await loadDayData(mondayOf(new Date()));
+  let treinos=0, totalAgua=0, dentroMeta=0;
+  week.forEach(d=>{
+    if(d.treinou==="Sim") treinos++;
+    const meta = d.treinou==="Sim" ? (params.metaBase+params.metaExtra) : params.metaBase;
+    const consumida = parseFloat(d.aguaConsumida)||0;
+    totalAgua += consumida;
+    if(d.aguaConsumida!=="" && consumida>=meta) dentroMeta++;
+  });
+  document.getElementById("weekSummaryCards").innerHTML = `
+    <div class="ind"><div class="name">Treinos</div><div class="val">${treinos} / 7</div></div>
+    <div class="ind"><div class="name">Água total</div><div class="val">${totalAgua.toFixed(1)} L</div></div>
+    <div class="ind ${dentroMeta>=5?'green':dentroMeta>=3?'yellow':'red'}"><div class="name">Adesão hídrica</div><div class="val">${dentroMeta}/7 dias</div></div>
+  `;
+
+  const sundays = await getSundayList();
+  const labels = sundays.map(s=>new Date(s.data+"T00:00").toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+  const pesos = sundays.map(s=>parseFloat(s.peso)||null);
+  if(miniChart) miniChart.destroy();
+  miniChart = new Chart(document.getElementById("chartWeightMini"), {
+    type:'line',
+    data:{labels, datasets:[{label:'Peso (kg)', data:pesos, borderColor:'#f2f2f3', backgroundColor:'rgba(242,242,243,.15)', tension:.3, spanGaps:true}]},
+    options:{plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#9a9a9e'}}, y:{ticks:{color:'#9a9a9e'}}}}
+  });
+}
+
+/* ============================================================
+   EVOLUÇÃO / COMPARATIVO
+   ============================================================ */
+let chHoma=null, chEgfr=null, chAcido=null, chPeso=null;
+async function renderEvolucao(){
+  const exams = await getExamList();
+  const base = exams[0];
+
+  const rows = exams.map((e,idx)=>{
+    const dHoma = idx===0? "" : ((e.homaIr-base.homaIr)>=0?"+":"")+(e.homaIr-base.homaIr).toFixed(2);
+    const dEgfr = idx===0? "" : ((e.eGFR-base.eGFR)>=0?"+":"")+(e.eGFR-base.eGFR).toFixed(0);
+    const dAcido= idx===0? "" : ((e.acidoUrico-base.acidoUrico)>=0?"+":"")+(e.acidoUrico-base.acidoUrico).toFixed(2);
+    const dPeso = idx===0? "" : ((e.peso-base.peso)>=0?"+":"")+(e.peso-base.peso).toFixed(1);
+    return `<tr>
+      <td>${idx===0?"<b>Início</b>":new Date(e.data+"T00:00").toLocaleDateString('pt-BR')}</td>
+      <td>${e.peso||"—"} ${dPeso?`<span class="muted">(${dPeso})</span>`:""}</td>
+      <td>${e.homaIr||"—"} ${pillHtml(statusOf('homaIr',e.homaIr))} ${dHoma?`<span class="muted">(${dHoma})</span>`:""}</td>
+      <td>${e.eGFR||"—"} ${pillHtml(statusOf('eGFR',e.eGFR))} ${dEgfr?`<span class="muted">(${dEgfr})</span>`:""}</td>
+      <td>${e.acidoUrico||"—"} ${pillHtml(statusOf('acidoUrico',e.acidoUrico))} ${dAcido?`<span class="muted">(${dAcido})</span>`:""}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("compareTable").innerHTML =
+    `<tr><th>Data</th><th>Peso</th><th>HOMA-IR</th><th>eGFR</th><th>Ácido Úrico</th></tr>${rows}`;
+
+  const labels = exams.map((e,i)=>i===0?"Início":new Date(e.data+"T00:00").toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+  const mk = (id, field, color, refLine)=>{
+    const data = exams.map(e=>parseFloat(e[field])||null);
+    return new Chart(document.getElementById(id), {
+      type:'line',
+      data:{labels, datasets:[
+        {label:field, data, borderColor:color, backgroundColor:color+"33", tension:.25, spanGaps:true},
+      ]},
+      options:{plugins:{legend:{display:false}}, scales:{x:{ticks:{color:'#9a9a9e'}}, y:{ticks:{color:'#9a9a9e'}}}}
+    });
+  };
+  if(chHoma) chHoma.destroy(); if(chEgfr) chEgfr.destroy(); if(chAcido) chAcido.destroy(); if(chPeso) chPeso.destroy();
+  chHoma = mk("chartHoma","homaIr","#e74c3c");
+  chEgfr = mk("chartEgfr","eGFR","#f1c40f");
+  chAcido= mk("chartAcido","acidoUrico","#e74c3c");
+  chPeso = mk("chartPeso","peso","#f2f2f3");
+}
+
+/* ============================================================
+   EXPORTAR XLSX (formato da planilha original)
+   ============================================================ */
+async function exportXlsx(){
+  const params = await getParams();
+  const monday = mondayOf(new Date());
+  const week = await loadDayData(monday);
+  const sundays = await getSundayList();
+  const exams = await getExamList();
+  const latest = exams[exams.length-1];
+
+  const wb = XLSX.utils.book_new();
+
+  // --- Aba 1: Cronograma Semanal ---
+  const ws1data = [];
+  ws1data[0] = ["PLANO SEMANAL DE ATIVIDADE FÍSICA E HIDRATAÇÃO"];
+  ws1data[1] = [`Foco Clínico: Reversão de HOMA-IR (${latest.homaIr}), Proteção Renal (eGFR ${latest.eGFR}) e Controle de Ácido Úrico (${latest.acidoUrico})`];
+  ws1data[3] = ["PARÂMETROS DE METAS HÍDRICAS","","","","MARCADORES LABS"];
+  ws1data[4] = ["Meta de Água Base (Diária)", params.metaBase, "Inestimável para diluir viscosidade do sangue","", "HOMA-IR Base", latest.homaIr];
+  ws1data[5] = ["Meta de Água Extra de Treino", params.metaExtra, "Consumir 500ml antes, 500ml durante e 500ml pós-treino","", "eGFR Base", latest.eGFR];
+  ws1data[6] = ["","","","","Ácido Úrico Base", latest.acidoUrico];
+  ws1data[9] = ["Dia da Semana","Treino de Força (Calistenia)","Treino Aeróbico (Cardio)","Treinou Hoje? (Sim/Não)","Meta Água (L)","Água Consumida (L)","Meta Hidratação?","Observações / Guia de Exercícios"];
+  week.forEach((d,i)=>{
+    const rowIdx = 10+i;
+    const sched = TREINO_SCHEDULE[i];
+    ws1data[rowIdx] = [d.nome, sched.forca, sched.cardio, d.treinou,
+      {t:'n', f:`IF(D${rowIdx+1}="Sim",$B$5+$B$6,$B$5)`},
+      d.aguaConsumida===""? "" : parseFloat(d.aguaConsumida),
+      {t:'s', f:`IF(F${rowIdx+1}>=E${rowIdx+1},"✅ SIM","❌ NÃO")`},
+      sched.obs];
+  });
+  ws1data[17] = ["Total Semanal / Resumo", {t:'n',f:"COUNTIF(D11:D17,\"Sim\")"}, "-", "-",
+    {t:'n',f:"SUM(E11:E17)"}, {t:'n',f:"SUM(F11:F17)"}, {t:'n',f:"COUNTIF(G11:G17,\"✅ SIM\")"},
+    "Monitore a hidratação rigorosamente para baixar o ácido úrico."];
+  const ws1 = XLSX.utils.aoa_to_sheet(ws1data);
+  XLSX.utils.book_append_sheet(wb, ws1, "Cronograma Semanal");
+
+  // --- Aba 2: Acompanhamento Mensal ---
+  const ws2data = [];
+  ws2data[0] = ["CONTROLE DE EVOLUÇÃO CLÍNICA (MENSAL/SEMANAL)"];
+  ws2data[1] = ["Histórico de peso, hábitos diários, sintomas e reavaliação de exames de laboratório"];
+  ws2data[3] = ["Semana","Peso (kg)","Metas Água Batidas (dias/7)","Funcionamento Intestino","Sintomas de Gota / Dor","HOMA-IR (Exame)","eGFR (Exame)","Ácido Úrico (mg/dL)","Desvios Alimentares / Furos"];
+  sundays.forEach((s,i)=>{
+    // usa o exame mais próximo/anterior à data do check-in
+    const relatedExam = [...exams].reverse().find(e=> e.data <= s.data) || exams[0];
+    ws2data[4+i] = [`Semana ${i+1}`, s.peso||"", s.diasMeta!==undefined? s.diasMeta: "",
+      s.intestino||"", s.sintomas||"", relatedExam.homaIr, relatedExam.eGFR, relatedExam.acidoUrico, s.desvios||""];
+  });
+  exams.slice(1).forEach((e,i)=>{
+    // adiciona também linhas de exame puro (sem check-in de domingo correspondente), ao final
+  });
+  const ws2 = XLSX.utils.aoa_to_sheet(ws2data);
+  XLSX.utils.book_append_sheet(wb, ws2, "Acompanhamento Mensal");
+
+  // --- Aba 3: Histórico completo de exames (extra, não sobrescreve as originais) ---
+  const ws3data = [["Data","Peso","Cintura","HOMA-IR","Insulina","Glicose","HbA1c","eGFR","Creatinina","Ácido Úrico","Hematócrito","Colesterol Total","LDL","HDL","Triglicérides","Vitamina D","Observações"]];
+  exams.forEach(e=>{
+    ws3data.push([e.data,e.peso,e.cintura,e.homaIr,e.insulina,e.glicose,e.hba1c,e.eGFR,e.creatinina,e.acidoUrico,e.hematocrito,e.colesterol,e.ldl,e.hdl,e.trig,e.vitd,e.obs]);
+  });
+  const ws3 = XLSX.utils.aoa_to_sheet(ws3data);
+  XLSX.utils.book_append_sheet(wb, ws3, "Histórico de Exames");
+
+  XLSX.writeFile(wb, "planejamento_saude.xlsx");
+}
+
+/* ============================================================
+   RESET
+   ============================================================ */
+async function resetAll(){
+  if(!confirm("Tem certeza? Isso vai apagar todos os dados salvos neste app.")) return;
+  const prefixes = ["week:","sunday:","exam:","params"];
+  for(const p of prefixes){
+    if(p==="params"){ await sDelete("params"); continue; }
+    const keys = await sList(p);
+    for(const k of keys) await sDelete(k);
+  }
+  location.reload();
+}
+
+/* ============================================================
+   INIT
+   ============================================================ */
+buildNav();
+</script>
+</body>
+</html>
