@@ -449,7 +449,7 @@ function initGoogleLogin(){
         buildNav();
       }catch(e){
         console.error(e);
-        document.getElementById("loginStatus").innerHTML = '<span style="color:var(--red)">Não consegui acessar a planilha. Confira o ID da planilha e se sua conta tem acesso a ela.</span>';
+        document.getElementById("loginStatus").innerHTML = '<span style="color:var(--red)">Erro ao acessar a planilha:<br><code style="font-size:.7rem;word-break:break-all;">'+ (e.message||e) +'</code></span>';
       }
     }
   });
