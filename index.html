@@ -148,11 +148,21 @@
 
     <div class="card">
       <div class="flexbetween">
-        <h2>Indicadores atuais</h2>
+        <h2>🩸 Indicadores de sangue</h2>
         <span class="muted" style="font-size:.75rem" id="lastExamDate"></span>
       </div>
-      <div class="grid cols-3" id="indicatorsGrid"></div>
+      <div class="grid cols-3" id="indicatorsGridSangue"></div>
       <div class="note">🟢 dentro do limite &nbsp; 🟡 razoável, requer atenção &nbsp; 🔴 acima do permitido</div>
+    </div>
+
+    <div class="card">
+      <h2>🧪 Indicadores de urina</h2>
+      <div class="grid cols-3" id="indicatorsGridUrina"></div>
+    </div>
+
+    <div class="card">
+      <h2>💩 Indicadores de fezes</h2>
+      <p class="muted" style="font-size:.82rem;">Nenhum exame de fezes registrado ainda. Quando você fizer um parasitológico/coprológico, é só me pedir para adicionar aqui.</p>
     </div>
 
     <div class="card">
@@ -253,21 +263,74 @@
       <div class="grid cols-2">
         <div><label>Peso (kg)</label><input type="number" step="0.1" id="examPeso"></div>
         <div><label>Circunferência abdominal (cm)</label><input type="number" step="0.5" id="examCintura"></div>
+      </div>
+
+      <h3 style="margin-top:18px;">🩸 Sangue — metabólico</h3>
+      <div class="grid cols-2">
         <div><label>HOMA-IR (ref: &lt; 2,70)</label><input type="number" step="0.01" id="examHoma"></div>
         <div><label>Insulina jejum µUI/mL (ref: 2,5–13,1)</label><input type="number" step="0.1" id="examInsulina"></div>
         <div><label>Glicose mg/dL (ref: 70–99)</label><input type="number" step="1" id="examGlicose"></div>
         <div><label>HbA1c % (ref: &lt; 5,7)</label><input type="number" step="0.1" id="examHba1c"></div>
+      </div>
+
+      <h3 style="margin-top:18px;">🩸 Sangue — renal</h3>
+      <div class="grid cols-2">
         <div><label>eGFR mL/min/1,73m² (ref: &gt; 90)</label><input type="number" step="1" id="examEgfr"></div>
         <div><label>Creatinina mg/dL (ref: 0,70–1,30)</label><input type="number" step="0.01" id="examCreatinina"></div>
+        <div><label>Ureia mg/dL (ref: 17–48)</label><input type="number" step="1" id="examUreia"></div>
         <div><label>Ácido úrico mg/dL (ref: 3,4–7,0 / meta &lt;6)</label><input type="number" step="0.1" id="examAcido"></div>
-        <div><label>Hematócrito % (ref: 40–50)</label><input type="number" step="0.1" id="examHematocrito"></div>
+      </div>
+
+      <h3 style="margin-top:18px;">🩸 Sangue — lipídios e hemograma</h3>
+      <div class="grid cols-2">
         <div><label>Colesterol total mg/dL (ref: &lt; 190)</label><input type="number" step="1" id="examColesterol"></div>
         <div><label>LDL mg/dL (meta &lt; 100–130)</label><input type="number" step="1" id="examLdl"></div>
         <div><label>HDL mg/dL (ref: &gt; 40)</label><input type="number" step="1" id="examHdl"></div>
         <div><label>Triglicérides mg/dL (ref: &lt; 150)</label><input type="number" step="1" id="examTrig"></div>
-        <div><label>Vitamina D ng/mL (ref: &gt; 30)</label><input type="number" step="0.1" id="examVitd"></div>
+        <div><label>Hematócrito % (ref: 40–50)</label><input type="number" step="0.1" id="examHematocrito"></div>
       </div>
-      <label>Observações do médico</label>
+
+      <h3 style="margin-top:18px;">🩸 Sangue — eletrólitos</h3>
+      <div class="grid cols-2">
+        <div><label>Sódio mmol/L (ref: 136–145)</label><input type="number" step="0.1" id="examSodio"></div>
+        <div><label>Potássio mmol/L (ref: 3,5–5,1)</label><input type="number" step="0.1" id="examPotassio"></div>
+        <div><label>Cloro mmol/L (ref: 98–107)</label><input type="number" step="0.1" id="examCloro"></div>
+        <div><label>Magnésio mg/dL (ref: 1,9–2,6)</label><input type="number" step="0.1" id="examMagnesio"></div>
+        <div><label>Bicarbonato mmol/L (ref: 21,0–32,0)</label><input type="number" step="0.1" id="examBicarbonato"></div>
+      </div>
+
+      <h3 style="margin-top:18px;">🩸 Sangue — hormônios e vitaminas</h3>
+      <div class="grid cols-2">
+        <div><label>Vitamina D ng/mL (ref: &gt; 30)</label><input type="number" step="0.1" id="examVitd"></div>
+        <div><label>Vitamina B12 pg/mL (ref: 245–985)</label><input type="number" step="1" id="examVitb12"></div>
+        <div><label>PTH (Paratormônio) pg/mL (ref: 15–65)</label><input type="number" step="1" id="examPth"></div>
+        <div><label>TSH µUI/mL (ref: 0,40–4,30)</label><input type="number" step="0.01" id="examTsh"></div>
+        <div><label>T4 Livre ng/dL (ref: 0,70–1,90)</label><input type="number" step="0.01" id="examT4livre"></div>
+        <div><label>PSA Total ng/mL (ref: &lt; 4,00)</label><input type="number" step="0.01" id="examPsa"></div>
+      </div>
+
+      <h3 style="margin-top:18px;">🧪 Urina de rotina (EAS)</h3>
+      <div class="grid cols-2">
+        <div><label>Proteína</label>
+          <select id="examUrinaProteina"><option value="">—</option><option>Ausente</option><option>Traços</option><option>Presente</option></select>
+        </div>
+        <div><label>Glicose</label>
+          <select id="examUrinaGlicose"><option value="">—</option><option>Ausente</option><option>Presente</option></select>
+        </div>
+        <div><label>Corpos Cetônicos</label>
+          <select id="examUrinaCetonicos"><option value="">—</option><option>Ausente</option><option>Presente</option></select>
+        </div>
+        <div><label>Nitrito</label>
+          <select id="examUrinaNitrito"><option value="">—</option><option>Negativo</option><option>Positivo</option></select>
+        </div>
+        <div><label>Hemoglobina</label>
+          <select id="examUrinaHemoglob"><option value="">—</option><option>Ausente</option><option>Presente</option></select>
+        </div>
+        <div><label>Leucócitos (µL, ref: 0–27)</label><input type="number" step="1" id="examUrinaLeucocitos"></div>
+        <div><label>Hemácias (µL, ref: 0–16 H / 0–27 M)</label><input type="number" step="1" id="examUrinaHemacias"></div>
+      </div>
+
+      <label style="margin-top:18px;">Observações do médico</label>
       <textarea id="examObs"></textarea>
       <button class="btn" onclick="saveExam()">Salvar exame</button>
       <div class="save-msg" id="examSaveMsg"></div>
@@ -340,8 +403,13 @@ const BASELINE_DATE = "2026-08-22";
 const BASELINE_EXAM = {
   data: BASELINE_DATE, peso: 80, cintura: null,
   homaIr: 7.08, insulina: 29.9, glicose: 96, hba1c: 5.6,
-  eGFR: 68, creatinina: 1.34, acidoUrico: 7.5, hematocrito: 50.5,
-  colesterol: 204, ldl: 134, hdl: 39, trig: 170, vitd: 24,
+  eGFR: 68, creatinina: 1.34, ureia: 38, acidoUrico: 7.5,
+  colesterol: 204, ldl: 134, hdl: 39, trig: 170,
+  hematocrito: 50.5,
+  sodio: 141, potassio: 4.5, cloro: 99.3, magnesio: 2.2, bicarbonato: 31.4,
+  vitd: 24, vitb12: 466, pth: 29, tsh: 1.74, t4livre: 1.20, psa: 1.10,
+  urinaProteina: "Ausente", urinaGlicose: "Ausente", urinaCetonicos: "Ausente",
+  urinaNitrito: "Negativo", urinaHemoglob: "Ausente", urinaLeucocitos: 3, urinaHemacias: 7,
   obs: "Exame inicial: base do plano de conduta clínica."
 };
 
@@ -376,25 +444,56 @@ const BASELINE_SUNDAY = {
 };
 
 // definição de referências e função de status (verde/amarelo/vermelho)
+// categoria: "sangue" | "urina" | "fezes" — usada para separar visualmente no Painel
 const MARKERS = {
-  homaIr:      {label:"HOMA-IR",            unit:"",      ref:"< 2,70",        dir:"lower", green:2.70, yellow:5.0},
-  insulina:    {label:"Insulina",           unit:"µUI/mL",ref:"2,5 – 13,1",    dir:"lower", green:13.1, yellow:20},
-  glicose:     {label:"Glicose",            unit:"mg/dL", ref:"70 – 99",       dir:"lower", green:99,   yellow:125},
-  hba1c:       {label:"HbA1c",              unit:"%",     ref:"< 5,7",         dir:"lower", green:5.7,  yellow:6.5},
-  eGFR:        {label:"eGFR",               unit:"mL/min",ref:"> 90",          dir:"higher",green:90,   yellow:60},
-  creatinina:  {label:"Creatinina",         unit:"mg/dL", ref:"0,70 – 1,30",   dir:"lower", green:1.30, yellow:1.6},
-  acidoUrico:  {label:"Ácido Úrico",        unit:"mg/dL", ref:"3,4 – 7,0 (meta <6)",dir:"lower", green:6.0, yellow:7.0},
-  hematocrito: {label:"Hematócrito",        unit:"%",     ref:"40 – 50",       dir:"range", green:[40,50], yellow:[38,52]},
-  colesterol:  {label:"Colesterol Total",   unit:"mg/dL", ref:"< 190",         dir:"lower", green:190,  yellow:220},
-  ldl:         {label:"LDL",                unit:"mg/dL", ref:"< 100 – 130",   dir:"lower", green:100,  yellow:130},
-  hdl:         {label:"HDL",                unit:"mg/dL", ref:"> 40",          dir:"higher",green:40,   yellow:35},
-  trig:        {label:"Triglicérides",      unit:"mg/dL", ref:"< 150",         dir:"lower", green:150,  yellow:200},
-  vitd:        {label:"Vitamina D",         unit:"ng/mL", ref:"> 30",          dir:"higher",green:30,   yellow:20},
+  // --- Metabólico / diabetes ---
+  homaIr:      {label:"HOMA-IR",            unit:"",      ref:"< 2,70",        dir:"lower", green:2.70, yellow:5.0, categoria:"sangue"},
+  insulina:    {label:"Insulina",           unit:"µUI/mL",ref:"2,5 – 13,1",    dir:"lower", green:13.1, yellow:20,  categoria:"sangue"},
+  glicose:     {label:"Glicose",            unit:"mg/dL", ref:"70 – 99",       dir:"lower", green:99,   yellow:125, categoria:"sangue"},
+  hba1c:       {label:"HbA1c",              unit:"%",     ref:"< 5,7",         dir:"lower", green:5.7,  yellow:6.5, categoria:"sangue"},
+  // --- Renal ---
+  eGFR:        {label:"eGFR",               unit:"mL/min",ref:"> 90",          dir:"higher",green:90,   yellow:60,  categoria:"sangue"},
+  creatinina:  {label:"Creatinina",         unit:"mg/dL", ref:"0,70 – 1,30",   dir:"lower", green:1.30, yellow:1.6, categoria:"sangue"},
+  ureia:       {label:"Ureia",              unit:"mg/dL", ref:"17 – 48",       dir:"range", green:[17,48], yellow:[10,55], categoria:"sangue"},
+  acidoUrico:  {label:"Ácido Úrico",        unit:"mg/dL", ref:"3,4 – 7,0 (meta <6)",dir:"lower", green:6.0, yellow:7.0, categoria:"sangue"},
+  // --- Lipídios ---
+  colesterol:  {label:"Colesterol Total",   unit:"mg/dL", ref:"< 190",         dir:"lower", green:190,  yellow:220, categoria:"sangue"},
+  ldl:         {label:"LDL",                unit:"mg/dL", ref:"< 100 – 130",   dir:"lower", green:100,  yellow:130, categoria:"sangue"},
+  hdl:         {label:"HDL",                unit:"mg/dL", ref:"> 40",          dir:"higher",green:40,   yellow:35,  categoria:"sangue"},
+  trig:        {label:"Triglicérides",      unit:"mg/dL", ref:"< 150",         dir:"lower", green:150,  yellow:200, categoria:"sangue"},
+  // --- Hemograma ---
+  hematocrito: {label:"Hematócrito",        unit:"%",     ref:"40 – 50",       dir:"range", green:[40,50], yellow:[38,52], categoria:"sangue"},
+  // --- Eletrólitos ---
+  sodio:       {label:"Sódio",              unit:"mmol/L",ref:"136 – 145",     dir:"range", green:[136,145], yellow:[133,148], categoria:"sangue"},
+  potassio:    {label:"Potássio",           unit:"mmol/L",ref:"3,5 – 5,1",     dir:"range", green:[3.5,5.1], yellow:[3.2,5.5], categoria:"sangue"},
+  cloro:       {label:"Cloro",              unit:"mmol/L",ref:"98 – 107",      dir:"range", green:[98,107], yellow:[95,110], categoria:"sangue"},
+  magnesio:    {label:"Magnésio",           unit:"mg/dL", ref:"1,9 – 2,6",     dir:"range", green:[1.9,2.6], yellow:[1.6,2.9], categoria:"sangue"},
+  bicarbonato: {label:"Bicarbonato",        unit:"mmol/L",ref:"21,0 – 32,0",   dir:"range", green:[21,32], yellow:[18,34], categoria:"sangue"},
+  // --- Hormônios / vitaminas ---
+  vitd:        {label:"Vitamina D",         unit:"ng/mL", ref:"> 30",          dir:"higher",green:30,   yellow:20,  categoria:"sangue"},
+  vitb12:      {label:"Vitamina B12",       unit:"pg/mL", ref:"245 – 985",     dir:"range", green:[245,985], yellow:[180,1100], categoria:"sangue"},
+  pth:         {label:"PTH (Paratormônio)", unit:"pg/mL", ref:"15 – 65",       dir:"range", green:[15,65], yellow:[10,75], categoria:"sangue"},
+  tsh:         {label:"TSH",                unit:"µUI/mL",ref:"0,40 – 4,30",   dir:"range", green:[0.4,4.3], yellow:[0.2,6.0], categoria:"sangue"},
+  t4livre:     {label:"T4 Livre",           unit:"ng/dL", ref:"0,70 – 1,90",   dir:"range", green:[0.7,1.9], yellow:[0.5,2.2], categoria:"sangue"},
+  psa:         {label:"PSA Total",          unit:"ng/mL", ref:"< 4,00",        dir:"lower", green:4.0, yellow:10.0, categoria:"sangue"},
+  // --- Urina ---
+  urinaProteina:  {label:"Proteína (urina)",    unit:"", ref:"Ausente", dir:"texto", ok:["ausente"], categoria:"urina"},
+  urinaGlicose:   {label:"Glicose (urina)",     unit:"", ref:"Ausente", dir:"texto", ok:["ausente"], categoria:"urina"},
+  urinaCetonicos: {label:"Corpos Cetônicos",    unit:"", ref:"Ausente", dir:"texto", ok:["ausente"], categoria:"urina"},
+  urinaNitrito:   {label:"Nitrito",             unit:"", ref:"Negativo", dir:"texto", ok:["negativo"], categoria:"urina"},
+  urinaHemoglob:  {label:"Hemoglobina (urina)", unit:"", ref:"Ausente", dir:"texto", ok:["ausente"], categoria:"urina"},
+  urinaLeucocitos:{label:"Leucócitos (urina)",  unit:"µL", ref:"0 – 27", dir:"range", green:[0,27], yellow:[0,40], categoria:"urina"},
+  urinaHemacias:  {label:"Hemácias (urina)",    unit:"µL", ref:"0 – 16 (H) / 0 – 27 (M)", dir:"range", green:[0,16], yellow:[0,27], categoria:"urina"},
 };
 
 function statusOf(key, value){
   if(value===null||value===undefined||value==="") return null;
-  const m = MARKERS[key]; const v = parseFloat(value);
+  const m = MARKERS[key];
+  if(m.dir==="texto"){
+    const v = String(value).trim().toLowerCase();
+    return m.ok.includes(v) ? "green" : "red";
+  }
+  const v = parseFloat(value);
   if(isNaN(v)) return null;
   if(m.dir==="lower"){ if(v<=m.green) return "green"; if(v<=m.yellow) return "yellow"; return "red"; }
   if(m.dir==="higher"){ if(v>=m.green) return "green"; if(v>=m.yellow) return "yellow"; return "red"; }
@@ -812,41 +911,66 @@ async function deleteSunday(data){
    ============================================================ */
 async function getExamList(){
   const keys = await sList("exam:");
-  const list = [];
+  const list = [BASELINE_EXAM];
   for(const k of keys){ const v = await sGet(k); if(v) list.push(v); }
+  // ordena por data real de coleta — assim o "primeiro" e o "último" exame
+  // são sempre determinados pela data, não pela ordem em que foram cadastrados
   list.sort((a,b)=>a.data.localeCompare(b.data));
-  return [BASELINE_EXAM, ...list];
+  return list;
 }
 async function getLatestExam(){
   const list = await getExamList();
-  return list[list.length-1];
+  return list[list.length-1]; // sempre o de data mais recente
+}
+async function getFirstExam(){
+  const list = await getExamList();
+  return list[0]; // sempre o de data mais antiga
 }
 async function saveExam(){
   const data = document.getElementById("examDate").value;
   if(!data){ alert("Escolha a data da coleta."); return; }
+  const val = (id)=> document.getElementById(id).value;
   const entry = {
     data,
-    peso: document.getElementById("examPeso").value,
-    cintura: document.getElementById("examCintura").value,
-    homaIr: document.getElementById("examHoma").value,
-    insulina: document.getElementById("examInsulina").value,
-    glicose: document.getElementById("examGlicose").value,
-    hba1c: document.getElementById("examHba1c").value,
-    eGFR: document.getElementById("examEgfr").value,
-    creatinina: document.getElementById("examCreatinina").value,
-    acidoUrico: document.getElementById("examAcido").value,
-    hematocrito: document.getElementById("examHematocrito").value,
-    colesterol: document.getElementById("examColesterol").value,
-    ldl: document.getElementById("examLdl").value,
-    hdl: document.getElementById("examHdl").value,
-    trig: document.getElementById("examTrig").value,
-    vitd: document.getElementById("examVitd").value,
-    obs: document.getElementById("examObs").value
+    peso: val("examPeso"),
+    cintura: val("examCintura"),
+    homaIr: val("examHoma"),
+    insulina: val("examInsulina"),
+    glicose: val("examGlicose"),
+    hba1c: val("examHba1c"),
+    eGFR: val("examEgfr"),
+    creatinina: val("examCreatinina"),
+    ureia: val("examUreia"),
+    acidoUrico: val("examAcido"),
+    hematocrito: val("examHematocrito"),
+    colesterol: val("examColesterol"),
+    ldl: val("examLdl"),
+    hdl: val("examHdl"),
+    trig: val("examTrig"),
+    sodio: val("examSodio"),
+    potassio: val("examPotassio"),
+    cloro: val("examCloro"),
+    magnesio: val("examMagnesio"),
+    bicarbonato: val("examBicarbonato"),
+    vitd: val("examVitd"),
+    vitb12: val("examVitb12"),
+    pth: val("examPth"),
+    tsh: val("examTsh"),
+    t4livre: val("examT4livre"),
+    psa: val("examPsa"),
+    urinaProteina: val("examUrinaProteina"),
+    urinaGlicose: val("examUrinaGlicose"),
+    urinaCetonicos: val("examUrinaCetonicos"),
+    urinaNitrito: val("examUrinaNitrito"),
+    urinaHemoglob: val("examUrinaHemoglob"),
+    urinaLeucocitos: val("examUrinaLeucocitos"),
+    urinaHemacias: val("examUrinaHemacias"),
+    obs: val("examObs")
   };
   await sSet("exam:"+data, entry);
   document.getElementById("examSaveMsg").textContent="Exame salvo ✓";
   setTimeout(()=>document.getElementById("examSaveMsg").textContent="",2000);
-  [...document.querySelectorAll("#tab-exame input, #tab-exame textarea")].forEach(i=>i.value="");
+  [...document.querySelectorAll("#tab-exame input, #tab-exame textarea, #tab-exame select")].forEach(i=>i.value="");
   await renderExamHistory();
   renderDashboard();
   renderEvolucao();
@@ -912,13 +1036,37 @@ const PDF_PATTERNS = {
   hba1c:       /(?:Hemoglobina Glicada|HbA1c)\D{0,20}?([\d]+,[\d]+|\d+)\s*%/i,
   eGFR:        /eGFR\D{0,10}?([\d]+,[\d]+|\d+)\s*mL/i,
   creatinina:  /Creatinina\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  ureia:       /Ur[ée]ia\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
   acidoUrico:  /[ÁA]cido\s*[ÚU]rico\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
   hematocrito: /Hemat[óo]crito\s+([\d]+,[\d]+|\d+)\s*%/i,
   colesterol:  /Colesterol\s*Total\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
   ldl:         /LDL\s*-\s*Colesterol\s*\(calculado\)\s+([\d]+,[\d]+|\d+)/i,
   hdl:         /(?<!Não\s)HDL\s*-\s*Colesterol\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
   trig:        /Triglic[ée]rides\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  sodio:       /S[óo]dio\s+([\d]+,[\d]+|\d+)\s*mmol\/L/i,
+  potassio:    /Pot[áa]ssio\s+([\d]+,[\d]+|\d+)\s*mmol\/L/i,
+  cloro:       /Cloro\s+([\d]+,[\d]+|\d+)\s*mmol\/L/i,
+  magnesio:    /Magn[ée]sio\s+([\d]+,[\d]+|\d+)\s*mg\/dL/i,
+  bicarbonato: /Bicarbonato\s+([\d]+,[\d]+|\d+)/i,
   vitd:        /(?:25-Hidroxivitamina D|Vitamina D)[^\d]{0,20}?([\d]+,[\d]+|\d+)\s*ng\/mL/i,
+  vitb12:      /Vitamina B-?12,?\s*Dosagem\s+([\d]+,[\d]+|\d+)\s*pg\/mL/i,
+  pth:         /PTH\s*mol[ée]cula\s*intacta\s+([\d]+,[\d]+|\d+)\s*pg\/mL/i,
+  tsh:         /Ultrassens[íi]vel\s*\(TSH\)\s+([\d]+,[\d]+|\d+)\s*µ?UI\/mL/i,
+  t4livre:     /Tiroxina Livre \(T4 Livre\)\s+([\d]+,[\d]+|\d+)\s*ng\/dL/i,
+  psa:         /PSA Total\s+([\d]+,[\d]+|\d+)\s*ng\/mL/i,
+};
+
+// campos de urina são texto (Ausente/Presente/Negativo/Positivo), tratados à parte
+const PDF_PATTERNS_TEXTO = {
+  urinaProteina:  /Prote[íi]na\s+(Ausente|Tra[çc]os|Presente)\s+Ausente/i,
+  urinaGlicose:   /Glicose\s+(Ausente|Presente)\s+Ausente/i,
+  urinaCetonicos: /Cet[ôo]nicos,?\s*Pesquisa\s+(Ausente|Presente)/i,
+  urinaNitrito:   /Nitrito\s+(Negativo|Positivo)/i,
+  urinaHemoglob:  /Hemoglobina\s+(Ausente|Presente)\s+Ausente/i,
+};
+const PDF_PATTERNS_NUM_SIMPLES = {
+  urinaLeucocitos: /Leuc[óo]citos\s+([\d]+)\s*µL/i,
+  urinaHemacias:   /Hem[áa]cias\s+([\d]+)\s*µL/i,
 };
 
 function isoFromBr(dataBr){
@@ -939,13 +1087,35 @@ async function extractPdfToForm(){
 
     const fieldMap = {
       homaIr:"examHoma", insulina:"examInsulina", glicose:"examGlicose", hba1c:"examHba1c",
-      eGFR:"examEgfr", creatinina:"examCreatinina", acidoUrico:"examAcido", hematocrito:"examHematocrito",
-      colesterol:"examColesterol", ldl:"examLdl", hdl:"examHdl", trig:"examTrig", vitd:"examVitd"
+      eGFR:"examEgfr", creatinina:"examCreatinina", ureia:"examUreia", acidoUrico:"examAcido",
+      hematocrito:"examHematocrito", colesterol:"examColesterol", ldl:"examLdl", hdl:"examHdl", trig:"examTrig",
+      sodio:"examSodio", potassio:"examPotassio", cloro:"examCloro", magnesio:"examMagnesio", bicarbonato:"examBicarbonato",
+      vitd:"examVitd", vitb12:"examVitb12", pth:"examPth", tsh:"examTsh", t4livre:"examT4livre", psa:"examPsa"
     };
     for(const key in fieldMap){
       const raw = grab(text, PDF_PATTERNS[key]);
       const num = toNum(raw);
       if(num!==null){ document.getElementById(fieldMap[key]).value = num; found++; }
+    }
+
+    const fieldMapTexto = {
+      urinaProteina:"examUrinaProteina", urinaGlicose:"examUrinaGlicose", urinaCetonicos:"examUrinaCetonicos",
+      urinaNitrito:"examUrinaNitrito", urinaHemoglob:"examUrinaHemoglob"
+    };
+    for(const key in fieldMapTexto){
+      const raw = grab(text, PDF_PATTERNS_TEXTO[key]);
+      if(raw){
+        // capitaliza a primeira letra pra bater com as opções do <select>
+        const val = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+        document.getElementById(fieldMapTexto[key]).value = val;
+        found++;
+      }
+    }
+
+    const fieldMapUrinaNum = { urinaLeucocitos:"examUrinaLeucocitos", urinaHemacias:"examUrinaHemacias" };
+    for(const key in fieldMapUrinaNum){
+      const raw = grab(text, PDF_PATTERNS_NUM_SIMPLES[key]);
+      if(raw!==null && raw!==undefined){ document.getElementById(fieldMapUrinaNum[key]).value = raw; found++; }
     }
 
     if(found>0){
@@ -1009,21 +1179,36 @@ async function markTodayDone(){
 }
 
 let miniChart=null;
+
+// ordena por gravidade: vermelho primeiro, depois amarelo, depois verde, depois sem dado
+const SEVERIDADE_ORDEM = {red:0, yellow:1, green:2, undefined:3};
+
+function renderIndicatorGrid(elementId, keys, latest){
+  const items = keys.map(k=>{
+    const m = MARKERS[k]; const v = latest[k];
+    const st = statusOf(k, v);
+    return {k, m, v, st};
+  }).sort((a,b)=> SEVERIDADE_ORDEM[a.st] - SEVERIDADE_ORDEM[b.st]);
+
+  document.getElementById(elementId).innerHTML = items.map(({m,v,st})=>{
+    const valorExibido = (v!==undefined && v!==null && v!=="") ? v : "—";
+    return `<div class="ind ${st||''}">
+      <div class="name">${m.label}</div>
+      <div class="val">${valorExibido} <span style="font-size:.7rem;color:var(--muted)">${m.unit}</span> ${pillHtml(st)}</div>
+      <div class="ref">Ref.: ${m.ref}</div>
+    </div>`;
+  }).join("");
+}
+
 async function renderDashboard(){
   renderTodayTraining();
   const latest = await getLatestExam();
   document.getElementById("lastExamDate").textContent = "Último exame: "+new Date(latest.data+"T00:00").toLocaleDateString('pt-BR');
 
-  const keysToShow = ["homaIr","eGFR","acidoUrico","trig","hdl","colesterol","ldl","hematocrito","vitd","glicose","hba1c","insulina"];
-  document.getElementById("indicatorsGrid").innerHTML = keysToShow.map(k=>{
-    const m = MARKERS[k]; const v = latest[k];
-    const st = statusOf(k,v);
-    return `<div class="ind ${st||''}">
-      <div class="name">${m.label}</div>
-      <div class="val">${v!==undefined&&v!==null&&v!==""?v:"—"} <span style="font-size:.7rem;color:var(--muted)">${m.unit}</span> ${pillHtml(st)}</div>
-      <div class="ref">Ref.: ${m.ref}</div>
-    </div>`;
-  }).join("");
+  const chavesSangue = Object.keys(MARKERS).filter(k=>MARKERS[k].categoria==="sangue");
+  const chavesUrina  = Object.keys(MARKERS).filter(k=>MARKERS[k].categoria==="urina");
+  renderIndicatorGrid("indicatorsGridSangue", chavesSangue, latest);
+  renderIndicatorGrid("indicatorsGridUrina", chavesUrina, latest);
 
   const params = await getParams();
   const week = await loadDayData(mondayOf(new Date()));
@@ -1149,9 +1334,19 @@ async function exportXlsx(){
   XLSX.utils.book_append_sheet(wb, ws2, "Acompanhamento Mensal");
 
   // --- Aba 3: Histórico completo de exames (extra, não sobrescreve as originais) ---
-  const ws3data = [["Data","Peso","Cintura","HOMA-IR","Insulina","Glicose","HbA1c","eGFR","Creatinina","Ácido Úrico","Hematócrito","Colesterol Total","LDL","HDL","Triglicérides","Vitamina D","Observações"]];
+  const ws3data = [["Data","Peso","Cintura","HOMA-IR","Insulina","Glicose","HbA1c","eGFR","Creatinina","Ureia","Ácido Úrico",
+    "Colesterol Total","LDL","HDL","Triglicérides","Hematócrito",
+    "Sódio","Potássio","Cloro","Magnésio","Bicarbonato",
+    "Vitamina D","Vitamina B12","PTH","TSH","T4 Livre","PSA",
+    "Urina-Proteína","Urina-Glicose","Urina-Cetônicos","Urina-Nitrito","Urina-Hemoglobina","Urina-Leucócitos","Urina-Hemácias",
+    "Observações"]];
   exams.forEach(e=>{
-    ws3data.push([e.data,e.peso,e.cintura,e.homaIr,e.insulina,e.glicose,e.hba1c,e.eGFR,e.creatinina,e.acidoUrico,e.hematocrito,e.colesterol,e.ldl,e.hdl,e.trig,e.vitd,e.obs]);
+    ws3data.push([e.data,e.peso,e.cintura,e.homaIr,e.insulina,e.glicose,e.hba1c,e.eGFR,e.creatinina,e.ureia,e.acidoUrico,
+      e.colesterol,e.ldl,e.hdl,e.trig,e.hematocrito,
+      e.sodio,e.potassio,e.cloro,e.magnesio,e.bicarbonato,
+      e.vitd,e.vitb12,e.pth,e.tsh,e.t4livre,e.psa,
+      e.urinaProteina,e.urinaGlicose,e.urinaCetonicos,e.urinaNitrito,e.urinaHemoglob,e.urinaLeucocitos,e.urinaHemacias,
+      e.obs]);
   });
   const ws3 = XLSX.utils.aoa_to_sheet(ws3data);
   XLSX.utils.book_append_sheet(wb, ws3, "Histórico de Exames");
