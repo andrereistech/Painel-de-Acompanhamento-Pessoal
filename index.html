@@ -345,15 +345,28 @@ const BASELINE_EXAM = {
   obs: "Exame inicial: base do plano de conduta clínica."
 };
 
-// Cronograma de treinos por dia (índice 0=Segunda ... 6=Domingo), extraído do plano original
+// Cronograma de treinos por dia (índice 0=Segunda ... 6=Domingo)
+// Invertido a pedido do usuário: Segunda/Quarta/Sábado = caminhada · Terça/Quinta = calistenia
+const CIRCUITO_CALISTENIA = [
+  {nome:"Polichinelo (aquecimento)", detalhe:"30 segundos"},
+  {nome:"Agachamento", detalhe:"3 séries × 15 repetições"},
+  {nome:"Flexão de braço (pode apoiar os joelhos)", detalhe:"3 séries × 10 repetições"},
+  {nome:"Elevação pélvica (ponte)", detalhe:"3 séries × 15 repetições"},
+  {nome:"Desenvolvimento de ombro com halteres (2–3kg)", detalhe:"3 séries × 12 repetições"},
+  {nome:"Rosca bíceps com halteres (2–3kg)", detalhe:"3 séries × 12 repetições"},
+  {nome:"Prancha", detalhe:"3 séries × 30 a 40 segundos"},
+];
+const CALISTENIA_RESUMO = "Circuito de calistenia: " + CIRCUITO_CALISTENIA.map(e=>`${e.nome} (${e.detalhe})`).join(", ") + ". Descanso de 30s entre exercícios e 60s entre séries. Tempo total: 25–30 min.";
+const CAMINHADA_RESUMO = "Caminhada rápida contínua, 35 a 40 minutos: 5 min de aquecimento leve + ritmo firme (dá pra falar frases curtas, mas fica ofegante) + 5 min de desaceleração no final.";
+
 const TREINO_SCHEDULE = [
-  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", obs:"Agachamento, Flexão, Elevação Pélvica, Prancha (25 min)"},
-  {forca:"Descanso", cardio:"Caminhada Rápida", obs:"Caminhada rápida de 35 a 40 min (ritmo firme para elevar HDL)"},
-  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", obs:"Agachamento, Flexão, Elevação Pélvica, Prancha (25 min)"},
-  {forca:"Descanso", cardio:"Caminhada Rápida", obs:"Caminhada rápida de 35 a 40 min (ritmo firme)"},
-  {forca:"Descanso", cardio:"Descanso Ativo", obs:"Descanso completo. Excelente dia para manter a hidratação alta."},
-  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", obs:"Agachamento, Flexão, Elevação Pélvica, Prancha (25 min)"},
-  {forca:"Descanso", cardio:"Descanso Ativo", obs:"Caminhada leve ou descanso. Planejamento de refeições da semana."}
+  {forca:"Descanso", cardio:"Caminhada Rápida", tipo:"caminhada", obs:CAMINHADA_RESUMO, resumo:"Caminhada rápida, 35–40 min"},
+  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", tipo:"calistenia", obs:CALISTENIA_RESUMO, exercicios:CIRCUITO_CALISTENIA, resumo:"Circuito calistenia, 25–30 min (ver detalhes no Painel)"},
+  {forca:"Descanso", cardio:"Caminhada Rápida", tipo:"caminhada", obs:CAMINHADA_RESUMO, resumo:"Caminhada rápida, 35–40 min"},
+  {forca:"Força em Casa (Calistenia)", cardio:"Descanso", tipo:"calistenia", obs:CALISTENIA_RESUMO, exercicios:CIRCUITO_CALISTENIA, resumo:"Circuito calistenia, 25–30 min (ver detalhes no Painel)"},
+  {forca:"Descanso", cardio:"Descanso", tipo:"descanso", obs:"Descanso completo. Excelente dia para manter a hidratação alta.", resumo:"Descanso completo"},
+  {forca:"Descanso", cardio:"Caminhada Rápida", tipo:"caminhada", obs:CAMINHADA_RESUMO, resumo:"Caminhada rápida, 35–40 min"},
+  {forca:"Descanso", cardio:"Descanso Ativo", tipo:"descansoAtivo", obs:"Alongamento leve de 10–15 min ou caminhada tranquila opcional. Planejamento de refeições da semana.", resumo:"Alongamento leve ou descanso"}
 ];
 
 const BASELINE_SUNDAY = {
@@ -655,7 +668,7 @@ async function renderWeek(){
     <div class="rowday" data-i="${i}">
       <div class="dname">${d.nome}<div class="muted" style="font-weight:400;font-size:.72rem">${new Date(d.date+"T00:00").toLocaleDateString('pt-BR')}</div>
         <div class="muted" style="font-weight:400;font-size:.68rem;margin-top:6px;line-height:1.4;">
-          💪 ${sched.forca}<br>🚶 ${sched.cardio}<br><span style="font-style:italic">${sched.obs}</span>
+          💪 ${sched.forca}<br>🚶 ${sched.cardio}<br><span style="font-style:italic">${sched.resumo}</span>
         </div>
       </div>
       <div>
@@ -957,6 +970,20 @@ async function renderTodayTraining(){
   const week = await loadDayData(monday);
   const todayEntry = week[idx];
   const feito = todayEntry.treinou === "Sim";
+
+  let detalheHtml;
+  if(sched.exercicios){
+    detalheHtml = `<div class="note" style="margin-top:10px;">
+      <b style="color:var(--text)">Circuito de hoje (3 séries, 30s de descanso entre exercícios):</b>
+      <table style="margin-top:8px;width:100%;">
+        ${sched.exercicios.map(ex=>`<tr><td style="padding:4px 6px 4px 0;border:none;">${ex.nome}</td><td style="padding:4px 0;border:none;color:var(--muted);white-space:nowrap;text-align:right;">${ex.detalhe}</td></tr>`).join("")}
+      </table>
+      <div class="muted" style="margin-top:6px;font-size:.72rem;">Tempo total estimado: 25–30 minutos.</div>
+    </div>`;
+  } else {
+    detalheHtml = `<div class="note">${sched.obs}</div>`;
+  }
+
   document.getElementById("todayTrainingCard").innerHTML = `
     <div class="flexbetween">
       <h2 style="margin:0">🏋️ Treino de hoje — ${DIAS[idx]}</h2>
@@ -966,7 +993,7 @@ async function renderTodayTraining(){
       <div class="ind"><div class="name">Força (Calistenia)</div><div class="val" style="font-size:1rem">${sched.forca}</div></div>
       <div class="ind"><div class="name">Aeróbico / Cardio</div><div class="val" style="font-size:1rem">${sched.cardio}</div></div>
     </div>
-    <div class="note">${sched.obs}</div>
+    ${detalheHtml}
     ${feito ? "" : `<button class="btn small" style="margin-top:12px" onclick="markTodayDone()">Marcar treino de hoje como feito</button>`}
   `;
 }
