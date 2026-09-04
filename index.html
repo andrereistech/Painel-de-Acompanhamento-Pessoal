@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
@@ -207,6 +208,52 @@
         <div><label>Meta extra em dia de treino (L)</label><input type="number" step="0.1" id="metaExtra"></div>
       </div>
       <button class="btn secondary small" onclick="saveParams()">Salvar parâmetros</button>
+    </div>
+  </section>
+
+  <!-- ===================== ATIVIDADES (prints do relógio/celular) ===================== -->
+  <section class="tab" id="tab-atividades">
+    <div class="card">
+      <h2>Registrar atividade do dia</h2>
+      <p class="muted" style="font-size:.82rem;margin-top:-6px">Suba o print do resumo diário (Apple Saúde/Fitness) e o app tenta ler os números automaticamente.</p>
+
+      <div class="note" style="background:var(--card2);border-style:solid;">
+        <b style="color:var(--text)">📷 Subir print (leitura automática)</b>
+        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="file" accept="image/*" id="ativImgInput" style="flex:1;min-width:180px;">
+          <button class="btn small" onclick="extractImageToForm()">Extrair dados do print</button>
+        </div>
+        <div id="imgExtractStatus" style="margin-top:8px;font-size:.78rem;"></div>
+        <div style="margin-top:6px;font-size:.72rem;color:var(--muted2)">A leitura por imagem pode errar, principalmente a data (costuma vir cortada no print) — confira e ajuste tudo antes de salvar.</div>
+      </div>
+
+      <label>Data da atividade</label>
+      <input type="date" id="ativData">
+      <div class="grid cols-2">
+        <div><label>Passos</label><input type="number" step="1" id="ativPassos"></div>
+        <div><label>Distância (km)</label><input type="number" step="0.01" id="ativDistancia"></div>
+        <div><label>Calorias de movimento (kcal)</label><input type="number" step="1" id="ativCalorias"></div>
+        <div><label>Lances de escada subidos</label><input type="number" step="1" id="ativEscada"></div>
+        <div>
+          <label>Tipo de atividade</label>
+          <select id="ativTipo"><option>Caminhada</option><option>Corrida</option><option>Calistenia</option><option>Outro</option></select>
+        </div>
+        <div><label>Duração (min) — opcional</label><input type="number" step="1" id="ativDuracao"></div>
+      </div>
+      <label>Observações</label>
+      <textarea id="ativObs" placeholder="Ex: corri em vez de caminhar hoje"></textarea>
+      <button class="btn" onclick="saveAtividade()">Salvar atividade</button>
+      <div class="save-msg" id="ativSaveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Histórico de atividades</h2>
+      <div style="overflow-x:auto"><table class="exam-hist" id="ativHistTable"></table></div>
+    </div>
+
+    <div class="card">
+      <h3>Passos e distância na semana</h3>
+      <div class="chartbox"><canvas id="chartPassos" height="110"></canvas></div>
     </div>
   </section>
 
@@ -698,6 +745,7 @@ async function sDelete(key){
 const TABS = [
   {id:"dashboard", label:"Painel"},
   {id:"semana", label:"Cronograma"},
+  {id:"atividades", label:"Atividades"},
   {id:"domingo", label:"Check-in domingo"},
   {id:"exame", label:"Novo exame"},
   {id:"evolucao", label:"Evolução"},
@@ -716,6 +764,7 @@ function showTab(id){
   document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab===id));
   if(id==="dashboard") renderDashboard();
   if(id==="semana") renderWeek();
+  if(id==="atividades") renderAtividades();
   if(id==="domingo") renderSunday();
   if(id==="exame") renderExamHistory();
   if(id==="evolucao") renderEvolucao();
@@ -997,6 +1046,142 @@ async function deleteExam(data){
   await renderExamHistory();
   renderDashboard();
   renderEvolucao();
+}
+
+/* ============================================================
+   ATIVIDADES (prints do relógio/celular) — CRUD
+   ============================================================ */
+async function getAtividadeList(){
+  const keys = await sList("atividade:");
+  const list = [];
+  for(const k of keys){ const v = await sGet(k); if(v) list.push(v); }
+  list.sort((a,b)=> b.data.localeCompare(a.data)); // mais recente primeiro
+  return list;
+}
+async function saveAtividade(){
+  const data = document.getElementById("ativData").value;
+  if(!data){ alert("Escolha a data da atividade."); return; }
+  const val = (id)=> document.getElementById(id).value;
+  const entry = {
+    data,
+    passos: val("ativPassos"),
+    distancia: val("ativDistancia"),
+    calorias: val("ativCalorias"),
+    escada: val("ativEscada"),
+    tipo: val("ativTipo"),
+    duracao: val("ativDuracao"),
+    obs: val("ativObs")
+  };
+  await sSet("atividade:"+data, entry);
+  document.getElementById("ativSaveMsg").textContent = "Atividade salva ✓";
+  setTimeout(()=>document.getElementById("ativSaveMsg").textContent="",2000);
+  [...document.querySelectorAll("#tab-atividades input, #tab-atividades textarea, #tab-atividades select")].forEach(i=>{ if(i.type!=="file") i.value=""; });
+  document.getElementById("ativImgInput").value = "";
+  document.getElementById("imgExtractStatus").innerHTML = "";
+  await renderAtividades();
+}
+async function deleteAtividade(data){
+  if(!confirm("Apagar este registro de atividade?")) return;
+  await sDelete("atividade:"+data);
+  await renderAtividades();
+}
+
+let chartPassosInstance = null;
+async function renderAtividades(){
+  document.getElementById("ativData").value = isoDate(new Date());
+  const list = await getAtividadeList();
+
+  const rows = list.map(a=>`
+    <tr>
+      <td>${new Date(a.data+"T00:00").toLocaleDateString('pt-BR')}</td>
+      <td>${a.tipo||"—"}</td>
+      <td>${a.passos? Number(a.passos).toLocaleString('pt-BR') : "—"}</td>
+      <td>${a.distancia||"—"} km</td>
+      <td>${a.calorias||"—"} kcal</td>
+      <td>${a.escada||"—"}</td>
+      <td><button class="btn secondary small" onclick="deleteAtividade('${a.data}')">Apagar</button></td>
+    </tr>`).join("");
+  document.getElementById("ativHistTable").innerHTML = list.length
+    ? `<tr><th>Data</th><th>Tipo</th><th>Passos</th><th>Distância</th><th>Calorias</th><th>Escada</th><th></th></tr>${rows}`
+    : `<tr><td class="muted">Nenhuma atividade registrada ainda.</td></tr>`;
+
+  // gráfico dos últimos 7 registros (ordem cronológica)
+  const ultimos7 = [...list].reverse().slice(-7);
+  const labels = ultimos7.map(a=>new Date(a.data+"T00:00").toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+  const passos = ultimos7.map(a=>parseFloat(a.passos)||0);
+  const distancias = ultimos7.map(a=>parseFloat(a.distancia)||0);
+  if(chartPassosInstance) chartPassosInstance.destroy();
+  chartPassosInstance = new Chart(document.getElementById("chartPassos"), {
+    type:'bar',
+    data:{labels, datasets:[
+      {label:'Passos', data:passos, backgroundColor:'#f2f2f3', yAxisID:'y'},
+      {label:'Distância (km)', data:distancias, type:'line', borderColor:'#f1c40f', yAxisID:'y1', tension:.3}
+    ]},
+    options:{
+      scales:{
+        x:{ticks:{color:'#9a9a9e'}},
+        y:{position:'left', ticks:{color:'#9a9a9e'}},
+        y1:{position:'right', ticks:{color:'#9a9a9e'}, grid:{drawOnChartArea:false}}
+      },
+      plugins:{legend:{labels:{color:'#9a9a9e'}}}
+    }
+  });
+}
+
+/* ============================================================
+   OCR DO PRINT DE ATIVIDADE (Tesseract.js)
+   ============================================================ */
+const ATIV_PATTERNS = {
+  passos:    /Passos\s*[\r\n]+\s*([\d.,]+)/i,
+  distancia: /Dist[âa]ncia\s*[\r\n]+\s*([\d.,]+)\s*KM/i,
+  calorias:  /Movimento\s*[\r\n]+\s*([\d.,]+)\s*\/\s*[\d.,]+\s*KCAL/i,
+  escada:    /Lances de escada subidos\s*[\r\n]+\s*([\d]+)/i,
+};
+function toNumAtividade(str, isDistancia){
+  if(!str) return null;
+  // remove separador de milhar (ponto) e troca vírgula decimal por ponto
+  let clean = str.trim();
+  if(isDistancia){ clean = clean.replace(/\./g,"").replace(",", "."); }
+  else { clean = clean.replace(/\./g,"").replace(",", "."); }
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : n;
+}
+
+async function extractImageToForm(){
+  const fileInput = document.getElementById("ativImgInput");
+  const status = document.getElementById("imgExtractStatus");
+  if(!fileInput.files.length){ status.innerHTML = '<span style="color:var(--red)">Escolha uma imagem primeiro.</span>'; return; }
+  status.innerHTML = "Lendo a imagem (pode levar alguns segundos)...";
+  try{
+    const worker = await Tesseract.createWorker('por');
+    const { data:{ text } } = await worker.recognize(fileInput.files[0]);
+    await worker.terminate();
+
+    let found = 0;
+    const rawPassos = grab(text, ATIV_PATTERNS.passos);
+    const numPassos = toNumAtividade(rawPassos, false);
+    if(numPassos!==null){ document.getElementById("ativPassos").value = Math.round(numPassos); found++; }
+
+    const rawDist = grab(text, ATIV_PATTERNS.distancia);
+    const numDist = toNumAtividade(rawDist, true);
+    if(numDist!==null){ document.getElementById("ativDistancia").value = numDist; found++; }
+
+    const rawCal = grab(text, ATIV_PATTERNS.calorias);
+    const numCal = toNumAtividade(rawCal, false);
+    if(numCal!==null){ document.getElementById("ativCalorias").value = Math.round(numCal); found++; }
+
+    const rawEscada = grab(text, ATIV_PATTERNS.escada);
+    if(rawEscada!==null){ document.getElementById("ativEscada").value = rawEscada; found++; }
+
+    if(found>0){
+      status.innerHTML = `<span style="color:var(--green)">✓ ${found} campo(s) preenchido(s) automaticamente. A data não vem do print — confira e ajuste o campo "Data da atividade" manualmente.</span>`;
+    } else {
+      status.innerHTML = `<span style="color:var(--yellow)">Não consegui reconhecer os valores nesse print. Preencha manualmente abaixo.</span>`;
+    }
+  }catch(e){
+    console.error(e);
+    status.innerHTML = `<span style="color:var(--red)">Não foi possível ler essa imagem. Preencha manualmente abaixo.</span>`;
+  }
 }
 
 /* ============================================================
