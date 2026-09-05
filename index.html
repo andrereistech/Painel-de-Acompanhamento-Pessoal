@@ -225,6 +225,10 @@
         </div>
         <div id="imgExtractStatus" style="margin-top:8px;font-size:.78rem;"></div>
         <div style="margin-top:6px;font-size:.72rem;color:var(--muted2)">A leitura por imagem pode errar, principalmente a data (costuma vir cortada no print) — confira e ajuste tudo antes de salvar.</div>
+        <div style="margin-top:8px;">
+          <a href="#" style="font-size:.72rem;color:var(--muted)" onclick="document.getElementById('ocrRawText').classList.toggle('hidden');return false;">Ver texto que o OCR leu (para depuração)</a>
+          <pre id="ocrRawText" class="hidden note" style="white-space:pre-wrap;font-size:.68rem;margin-top:6px;max-height:180px;overflow:auto;"></pre>
+        </div>
       </div>
 
       <label>Data da atividade</label>
@@ -251,10 +255,10 @@
       <div style="overflow-x:auto"><table class="exam-hist" id="ativHistTable"></table></div>
     </div>
 
-    <div class="card">
-      <h3>Passos e distância na semana</h3>
-      <div class="chartbox"><canvas id="chartPassos" height="110"></canvas></div>
-    </div>
+    <div class="card"><h3>🚶 Passos por dia</h3><div class="chartbox"><canvas id="chartPassos" height="110"></canvas></div></div>
+    <div class="card"><h3>📏 Distância por dia (km)</h3><div class="chartbox"><canvas id="chartDistancia" height="110"></canvas></div></div>
+    <div class="card"><h3>🔥 Calorias de movimento por dia</h3><div class="chartbox"><canvas id="chartCalorias" height="110"></canvas></div></div>
+    <div class="card"><h3>🪜 Lances de escada por dia</h3><div class="chartbox"><canvas id="chartEscada" height="110"></canvas></div></div>
   </section>
 
   <!-- ===================== ACOMPANHAMENTO MENSAL (DOMINGO) ===================== -->
@@ -483,6 +487,45 @@ const TREINO_SCHEDULE = [
   {forca:"Descanso", cardio:"Caminhada Rápida", tipo:"caminhada", obs:CAMINHADA_RESUMO, resumo:"Caminhada rápida, 35–40 min"},
   {forca:"Descanso", cardio:"Descanso Ativo", tipo:"descansoAtivo", obs:"Alongamento leve de 10–15 min ou caminhada tranquila opcional. Planejamento de refeições da semana.", resumo:"Alongamento leve ou descanso"}
 ];
+
+// Tipos genéricos de treino (usados quando o usuário troca manualmente o treino do dia)
+const TIPO_INFO = {
+  caminhada:     {forca:"Descanso", cardio:"Caminhada Rápida", tipo:"caminhada", obs:CAMINHADA_RESUMO, resumo:"Caminhada rápida, 35–40 min", label:"Caminhada"},
+  calistenia:    {forca:"Força em Casa (Calistenia)", cardio:"Descanso", tipo:"calistenia", obs:CALISTENIA_RESUMO, exercicios:CIRCUITO_CALISTENIA, resumo:"Circuito calistenia, 25–30 min (ver detalhes no Painel)", label:"Calistenia"},
+  descanso:      {forca:"Descanso", cardio:"Descanso", tipo:"descanso", obs:"Descanso completo.", resumo:"Descanso completo", label:"Descanso"},
+  descansoAtivo: {forca:"Descanso", cardio:"Descanso Ativo", tipo:"descansoAtivo", obs:"Alongamento leve de 10–15 min ou caminhada tranquila opcional.", resumo:"Alongamento leve ou descanso", label:"Descanso ativo / alongamento"}
+};
+
+// Retorna o treino "efetivo" do dia: usa a troca manual (tipoOverride) se existir, senão o padrão da semana
+function getSchedForEntry(idx, entry){
+  if(entry && entry.tipoOverride && TIPO_INFO[entry.tipoOverride]) return TIPO_INFO[entry.tipoOverride];
+  return TREINO_SCHEDULE[idx];
+}
+
+// Busca a entrada de um dia específico (qualquer data), independente da semana atual
+async function getDayEntryForDate(dateObj){
+  const monday = mondayOf(dateObj);
+  const week = await loadDayData(monday);
+  const idx = (dateObj.getDay()+6)%7;
+  return { entry: week[idx], idx, monday, week };
+}
+
+// Marca um dia específico como feito (usado tanto para hoje quanto para o dia anterior pendente)
+async function markDayDone(dateObj){
+  const { week, idx, monday } = await getDayEntryForDate(dateObj);
+  week[idx].treinou = "Sim";
+  await sSet("week:"+isoDate(monday), week);
+  renderTodayTraining();
+  renderDashboard();
+}
+
+// Salva a troca manual de tipo de treino para um dia específico
+async function saveTipoOverride(dateObj, novoTipo){
+  const { week, idx, monday } = await getDayEntryForDate(dateObj);
+  week[idx].tipoOverride = novoTipo || null;
+  await sSet("week:"+isoDate(monday), week);
+  renderTodayTraining();
+}
 
 const BASELINE_SUNDAY = {
   data: "2026-08-23", peso: 80, cintura: null,
@@ -811,7 +854,7 @@ async function renderWeek(){
     const meta = d.treinou==="Sim" ? (params.metaBase+params.metaExtra) : params.metaBase;
     const consumida = parseFloat(d.aguaConsumida)||0;
     const bateu = consumida >= meta;
-    const sched = TREINO_SCHEDULE[i];
+    const sched = getSchedForEntry(i, d);
     return `
     <div class="rowday" data-i="${i}">
       <div class="dname">${d.nome}<div class="muted" style="font-weight:400;font-size:.72rem">${new Date(d.date+"T00:00").toLocaleDateString('pt-BR')}</div>
@@ -1086,7 +1129,7 @@ async function deleteAtividade(data){
   await renderAtividades();
 }
 
-let chartPassosInstance = null;
+let chartPassosInstance = null, chartDistanciaInstance = null, chartCaloriasInstance = null, chartEscadaInstance = null;
 async function renderAtividades(){
   document.getElementById("ativData").value = isoDate(new Date());
   const list = await getAtividadeList();
@@ -1105,44 +1148,60 @@ async function renderAtividades(){
     ? `<tr><th>Data</th><th>Tipo</th><th>Passos</th><th>Distância</th><th>Calorias</th><th>Escada</th><th></th></tr>${rows}`
     : `<tr><td class="muted">Nenhuma atividade registrada ainda.</td></tr>`;
 
-  // gráfico dos últimos 7 registros (ordem cronológica)
-  const ultimos7 = [...list].reverse().slice(-7);
-  const labels = ultimos7.map(a=>new Date(a.data+"T00:00").toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
-  const passos = ultimos7.map(a=>parseFloat(a.passos)||0);
-  const distancias = ultimos7.map(a=>parseFloat(a.distancia)||0);
-  if(chartPassosInstance) chartPassosInstance.destroy();
-  chartPassosInstance = new Chart(document.getElementById("chartPassos"), {
-    type:'bar',
-    data:{labels, datasets:[
-      {label:'Passos', data:passos, backgroundColor:'#f2f2f3', yAxisID:'y'},
-      {label:'Distância (km)', data:distancias, type:'line', borderColor:'#f1c40f', yAxisID:'y1', tension:.3}
-    ]},
-    options:{
-      scales:{
-        x:{ticks:{color:'#9a9a9e'}},
-        y:{position:'left', ticks:{color:'#9a9a9e'}},
-        y1:{position:'right', ticks:{color:'#9a9a9e'}, grid:{drawOnChartArea:false}}
-      },
-      plugins:{legend:{labels:{color:'#9a9a9e'}}}
-    }
-  });
+  // gráficos dos últimos 14 registros (ordem cronológica), um por métrica
+  const ultimos = [...list].reverse().slice(-14);
+  const labels = ultimos.map(a=>new Date(a.data+"T00:00").toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}));
+  const passos = ultimos.map(a=>parseFloat(a.passos)||0);
+  const distancias = ultimos.map(a=>parseFloat(a.distancia)||0);
+  const calorias = ultimos.map(a=>parseFloat(a.calorias)||0);
+  const escadas = ultimos.map(a=>parseFloat(a.escada)||0);
+
+  const axisOpts = {x:{ticks:{color:'#9a9a9e'}}, y:{ticks:{color:'#9a9a9e'}}};
+  const mkChart = (instance, canvasId, label, data, color, tipo)=>{
+    if(instance) instance.destroy();
+    return new Chart(document.getElementById(canvasId), {
+      type: tipo||'bar',
+      data:{labels, datasets:[{label, data, backgroundColor:color, borderColor:color, tension:.3}]},
+      options:{plugins:{legend:{display:false}}, scales:axisOpts}
+    });
+  };
+  chartPassosInstance = mkChart(chartPassosInstance, "chartPassos", "Passos", passos, "#f2f2f3");
+  chartDistanciaInstance = mkChart(chartDistanciaInstance, "chartDistancia", "Distância (km)", distancias, "#f1c40f", "line");
+  chartCaloriasInstance = mkChart(chartCaloriasInstance, "chartCalorias", "Calorias", calorias, "#e74c3c");
+  chartEscadaInstance = mkChart(chartEscadaInstance, "chartEscada", "Lances de escada", escadas, "#2ecc71");
 }
 
 /* ============================================================
    OCR DO PRINT DE ATIVIDADE (Tesseract.js)
    ============================================================ */
+// cada campo tem uma lista de padrões — tenta o primeiro, se não achar tenta o próximo (mais tolerante)
 const ATIV_PATTERNS = {
-  passos:    /Passos\s*[\r\n]+\s*([\d.,]+)/i,
-  distancia: /Dist[âa]ncia\s*[\r\n]+\s*([\d.,]+)\s*KM/i,
-  calorias:  /Movimento\s*[\r\n]+\s*([\d.,]+)\s*\/\s*[\d.,]+\s*KCAL/i,
-  escada:    /Lances de escada subidos\s*[\r\n]+\s*([\d]+)/i,
+  passos: [
+    /Passos[^\d]{0,20}?([\d][\d.,]{2,})/i,
+  ],
+  distancia: [
+    /Dist[âaÂÀ]ncia[^\d]{0,20}?([\d][\d.,]*)\s*K?M/i,
+    /([\d]+[.,]\d{1,2})\s*KM/i,
+  ],
+  calorias: [
+    /Movimento[^\d]{0,20}?([\d][\d.,]*)\s*\/\s*[\d.,]+\s*K?CAL/i,
+    /([\d][\d.,]*)\s*\/\s*[\d.,]+\s*K?CAL/i,
+  ],
+  escada: [
+    /Lances\s*de\s*escada\s*subidos[^\d]{0,20}?([\d]+)/i,
+    /escada[^\d]{0,25}?([\d]+)/i,
+  ],
 };
-function toNumAtividade(str, isDistancia){
+function tryPatterns(text, patterns){
+  for(const re of patterns){
+    const m = text.match(re);
+    if(m) return m[1];
+  }
+  return null;
+}
+function toNumAtividade(str){
   if(!str) return null;
-  // remove separador de milhar (ponto) e troca vírgula decimal por ponto
-  let clean = str.trim();
-  if(isDistancia){ clean = clean.replace(/\./g,"").replace(",", "."); }
-  else { clean = clean.replace(/\./g,"").replace(",", "."); }
+  const clean = str.trim().replace(/\./g,"").replace(",", ".");
   const n = parseFloat(clean);
   return isNaN(n) ? null : n;
 }
@@ -1157,30 +1216,29 @@ async function extractImageToForm(){
     const { data:{ text } } = await worker.recognize(fileInput.files[0]);
     await worker.terminate();
 
+    document.getElementById("ocrRawText").textContent = text || "(o OCR não retornou nenhum texto)";
+
     let found = 0;
-    const rawPassos = grab(text, ATIV_PATTERNS.passos);
-    const numPassos = toNumAtividade(rawPassos, false);
+    const numPassos = toNumAtividade(tryPatterns(text, ATIV_PATTERNS.passos));
     if(numPassos!==null){ document.getElementById("ativPassos").value = Math.round(numPassos); found++; }
 
-    const rawDist = grab(text, ATIV_PATTERNS.distancia);
-    const numDist = toNumAtividade(rawDist, true);
+    const numDist = toNumAtividade(tryPatterns(text, ATIV_PATTERNS.distancia));
     if(numDist!==null){ document.getElementById("ativDistancia").value = numDist; found++; }
 
-    const rawCal = grab(text, ATIV_PATTERNS.calorias);
-    const numCal = toNumAtividade(rawCal, false);
+    const numCal = toNumAtividade(tryPatterns(text, ATIV_PATTERNS.calorias));
     if(numCal!==null){ document.getElementById("ativCalorias").value = Math.round(numCal); found++; }
 
-    const rawEscada = grab(text, ATIV_PATTERNS.escada);
+    const rawEscada = tryPatterns(text, ATIV_PATTERNS.escada);
     if(rawEscada!==null){ document.getElementById("ativEscada").value = rawEscada; found++; }
 
     if(found>0){
-      status.innerHTML = `<span style="color:var(--green)">✓ ${found} campo(s) preenchido(s) automaticamente. A data não vem do print — confira e ajuste o campo "Data da atividade" manualmente.</span>`;
+      status.innerHTML = `<span style="color:var(--green)">✓ ${found} de 4 campos preenchidos automaticamente. A data não vem do print — confira e ajuste o campo "Data da atividade" manualmente.</span>`;
     } else {
-      status.innerHTML = `<span style="color:var(--yellow)">Não consegui reconhecer os valores nesse print. Preencha manualmente abaixo.</span>`;
+      status.innerHTML = `<span style="color:var(--yellow)">Não consegui reconhecer os valores nesse print. Clique em "Ver texto que o OCR leu" abaixo pra ver o que ele enxergou, e preencha manualmente.</span>`;
     }
   }catch(e){
     console.error(e);
-    status.innerHTML = `<span style="color:var(--red)">Não foi possível ler essa imagem. Preencha manualmente abaixo.</span>`;
+    status.innerHTML = `<span style="color:var(--red)">Não foi possível ler essa imagem: ${e.message||e}</span>`;
   }
 }
 
@@ -1320,11 +1378,12 @@ async function extractPdfToForm(){
 async function renderTodayTraining(){
   const today = new Date();
   const idx = (today.getDay()+6)%7; // 0=Segunda ... 6=Domingo
-  const sched = TREINO_SCHEDULE[idx];
   const monday = mondayOf(today);
   const week = await loadDayData(monday);
   const todayEntry = week[idx];
+  const sched = getSchedForEntry(idx, todayEntry);
   const feito = todayEntry.treinou === "Sim";
+  const isOverride = !!todayEntry.tipoOverride;
 
   let detalheHtml;
   if(sched.exercicios){
@@ -1339,6 +1398,33 @@ async function renderTodayTraining(){
     detalheHtml = `<div class="note">${sched.obs}</div>`;
   }
 
+  const seletorHtml = `
+    <div style="margin-top:10px;">
+      <label style="margin-top:0;">Não vai seguir o treino programado? Troque aqui:</label>
+      <select id="tipoOverrideSelect" onchange="saveTipoOverride(new Date(), this.value)">
+        <option value="">Padrão do dia (${TREINO_SCHEDULE[idx].label || TIPO_INFO[TREINO_SCHEDULE[idx].tipo].label})${isOverride?"":" ✓"}</option>
+        ${Object.keys(TIPO_INFO).map(k=>`<option value="${k}" ${todayEntry.tipoOverride===k?"selected":""}>${TIPO_INFO[k].label}${todayEntry.tipoOverride===k?" ✓":""}</option>`).join("")}
+      </select>
+    </div>`;
+
+  // verifica se o treino de ONTEM ficou pendente (não descanso e não marcado como feito)
+  const ontem = new Date(today); ontem.setDate(ontem.getDate()-1);
+  const {entry: ontemEntry, idx: ontemIdx} = await getDayEntryForDate(ontem);
+  const ontemSched = getSchedForEntry(ontemIdx, ontemEntry);
+  const ontemPendente = ontemEntry.treinou !== "Sim" && ontemSched.tipo!=="descanso" && ontemSched.tipo!=="descansoAtivo";
+
+  let pendenteHtml = "";
+  if(ontemPendente){
+    pendenteHtml = `
+    <div class="note" style="margin-top:12px;border-color:rgba(241,196,15,.4);">
+      <b style="color:var(--yellow)">⚠️ Treino de ontem (${DIAS[ontemIdx]}) ficou pendente: ${ontemSched.label||ontemSched.resumo}</b>
+      ${ontemSched.exercicios ? `<table style="margin-top:8px;width:100%;">
+        ${ontemSched.exercicios.map(ex=>`<tr><td style="padding:3px 6px 3px 0;border:none;font-size:.8rem;">${ex.nome}</td><td style="padding:3px 0;border:none;color:var(--muted);white-space:nowrap;text-align:right;font-size:.8rem;">${ex.detalhe}</td></tr>`).join("")}
+      </table>` : `<div class="muted" style="font-size:.8rem;margin-top:4px;">${ontemSched.obs}</div>`}
+      <button class="btn secondary small" style="margin-top:10px;" onclick="markDayDone(new Date(new Date().setDate(new Date().getDate()-1)))">Marcar treino de ontem como feito</button>
+    </div>`;
+  }
+
   document.getElementById("todayTrainingCard").innerHTML = `
     <div class="flexbetween">
       <h2 style="margin:0">🏋️ Treino de hoje — ${DIAS[idx]}</h2>
@@ -1349,18 +1435,13 @@ async function renderTodayTraining(){
       <div class="ind"><div class="name">Aeróbico / Cardio</div><div class="val" style="font-size:1rem">${sched.cardio}</div></div>
     </div>
     ${detalheHtml}
+    ${seletorHtml}
+    ${pendenteHtml}
     ${feito ? "" : `<button class="btn small" style="margin-top:12px" onclick="markTodayDone()">Marcar treino de hoje como feito</button>`}
   `;
 }
 async function markTodayDone(){
-  const today = new Date();
-  const idx = (today.getDay()+6)%7;
-  const monday = mondayOf(today);
-  const week = await loadDayData(monday);
-  week[idx].treinou = "Sim";
-  await sSet("week:"+isoDate(monday), week);
-  renderTodayTraining();
-  renderDashboard();
+  await markDayDone(new Date());
 }
 
 let miniChart=null;
@@ -1488,7 +1569,7 @@ async function exportXlsx(){
   ws1data[9] = ["Dia da Semana","Treino de Força (Calistenia)","Treino Aeróbico (Cardio)","Treinou Hoje? (Sim/Não)","Meta Água (L)","Água Consumida (L)","Meta Hidratação?","Observações / Guia de Exercícios"];
   week.forEach((d,i)=>{
     const rowIdx = 10+i;
-    const sched = TREINO_SCHEDULE[i];
+    const sched = getSchedForEntry(i, d);
     ws1data[rowIdx] = [d.nome, sched.forca, sched.cardio, d.treinou,
       {t:'n', f:`IF(D${rowIdx+1}="Sim",$B$5+$B$6,$B$5)`},
       d.aguaConsumida===""? "" : parseFloat(d.aguaConsumida),
